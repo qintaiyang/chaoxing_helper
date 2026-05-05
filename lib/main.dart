@@ -1,0 +1,42 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'v2/app.dart';
+import 'v2/app_dependencies.dart';
+import 'v2/infra/services/notification_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await AppDependencies.instance.initialize();
+
+  try {
+    AppDependencies.instance.imService.initialize();
+  } catch (e) {
+    debugPrint('环信 IM 初始化跳过: $e');
+  }
+
+  if (Platform.isAndroid) {
+    try {
+      FlutterForegroundTask.addTaskDataCallback((data) {
+        if (data == 'keepalive') {
+          AppDependencies.instance.imService.onForegroundServiceKeepAlive();
+        }
+      });
+    } catch (e) {
+      debugPrint('前台服务保活监听注册失败: $e');
+    }
+  }
+
+  try {
+    await NotificationService().initialize(
+      onNotificationTap: handleNotificationTap,
+    );
+    await NotificationService().requestPermission();
+  } catch (e) {
+    debugPrint('通知服务初始化跳过: $e');
+  }
+
+  runApp(const ProviderScope(child: V2App()));
+}
