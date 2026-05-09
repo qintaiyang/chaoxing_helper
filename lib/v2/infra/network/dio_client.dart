@@ -245,6 +245,9 @@ class CookieInterceptor extends Interceptor {
        isLoggingIn = isLoggingInNotifier ?? ValueNotifier(false);
 
   String? get _currentUserId {
+    final cookieManager = _cookieManager;
+    final overrideUserId = cookieManager.getOverrideUserId();
+    if (overrideUserId != null) return overrideUserId;
     final storage = SharedPreferencesStorage.instance;
     return storage.getStringSync(_sessionKey);
   }

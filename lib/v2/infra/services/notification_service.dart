@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import '../../domain/entities/push_notification.dart';
+import '../../domain/entities/notification.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -337,29 +337,22 @@ void _onBackgroundNotificationResponse(NotificationResponse response) {
 }
 
 @pragma('vm:entry-point')
-void imForegroundStartCallback() {
-  FlutterForegroundTask.setTaskHandler(ImKeepAliveTaskHandler());
+Future<void> imForegroundStartCallback() async {
+  debugPrint('[ImForeground] 前台服务已启动');
+  FlutterForegroundTask.setTaskHandler(_ImKeepAliveHandler());
 }
 
-class ImKeepAliveTaskHandler extends TaskHandler {
+class _ImKeepAliveHandler extends TaskHandler {
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
-    debugPrint('[ImKeepAlive] 服务启动: starter=${starter.name}');
-    FlutterForegroundTask.sendDataToMain('keepalive');
+    debugPrint('[ImForeground] IM SDK 将通过 WebSocket 保持连接，前台服务仅用于保活');
   }
 
   @override
-  void onRepeatEvent(DateTime timestamp) {
-    FlutterForegroundTask.sendDataToMain('keepalive');
-  }
+  Future<void> onRepeatEvent(DateTime timestamp) async {}
 
   @override
   Future<void> onDestroy(DateTime timestamp) async {
-    debugPrint('[ImKeepAlive] 服务销毁');
-  }
-
-  @override
-  void onNotificationPressed() {
-    FlutterForegroundTask.launchApp('/');
+    debugPrint('[ImForeground] 前台服务已停止');
   }
 }

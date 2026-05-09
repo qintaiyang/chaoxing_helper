@@ -18,6 +18,57 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl(this._cxApi, this._cookieManager, this._accountRepo);
 
   @override
+  Future<Either<Failure, User>> loginWithApp(
+    String username,
+    String password,
+  ) async {
+    try {
+      final result = await _cxApi.loginAPP(username, password);
+      if (result == null || result['status'] != true) {
+        return Left(
+          Failure.auth(message: result?['mes']?.toString() ?? '登录失败'),
+        );
+      }
+
+      _cxApi.setLoggingInFlag(true);
+      final userDto = await _cxApi.getUserInfo();
+      _cxApi.setLoggingInFlag(false);
+
+      if (userDto == null) {
+        return const Left(Failure.auth(message: '获取用户信息失败'));
+      }
+      final user = UserDto(
+        uid: result['puid']?.toString() ?? userDto.uid,
+        name: userDto.name,
+        avatar: userDto.avatar,
+        phone: userDto.phone,
+        school: userDto.school,
+        platform: 'chaoxing',
+        imAccount: userDto.imAccount,
+        status: true,
+      ).toEntity();
+
+      await _cookieManager.saveTempCookiesToUser(user.uid);
+      await _cookieManager.saveCookiesForUser(user.uid);
+      await _accountRepo.setCxPassword(user.uid, password);
+      debugPrint('✅ 已保存 Cookie 和密码用于自动登录');
+
+      return Right(user);
+    } on DioException catch (e) {
+      _cxApi.setLoggingInFlag(false);
+      return Left(
+        Failure.network(
+          message: e.message ?? '网络错误',
+          statusCode: e.response?.statusCode,
+        ),
+      );
+    } catch (e) {
+      _cxApi.setLoggingInFlag(false);
+      return Left(Failure.unknown(message: e.toString(), error: e));
+    }
+  }
+
+  @override
   Future<Either<Failure, User>> loginWithPassword(
     String username,
     String password,
@@ -73,10 +124,10 @@ class AuthRepositoryImpl implements AuthRepository {
     String code,
   ) async {
     try {
-      final result = await _cxApi.loginWithPhone(phone, code);
+      final result = await _cxApi.loginAPP(phone, code, loginType: '2');
       if (result == null || result['status'] != true) {
         return Left(
-          Failure.auth(message: result?['msg']?.toString() ?? '登录失败'),
+          Failure.auth(message: result?['mes']?.toString() ?? '登录失败'),
         );
       }
 
@@ -117,8 +168,46 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, User>> loginWithQRCode() async {
-    return const Left(Failure.business(message: '二维码登录暂未实现'));
+  Future<Either<Failure, User>> loginWithQRCode(String uuid, String enc) async {
+    try {
+      final statusResult = await _cxApi.checkQRAuthStatus(uuid, enc);
+      if (statusResult == null || statusResult['status'] != true) {
+        return const Left(Failure.business(message: '二维码扫描失败'));
+      }
+
+      final authResult = await _cxApi.authorizeWebQR(uuid, enc);
+      if (authResult == null || authResult['status'] != true) {
+        return const Left(Failure.business(message: '二维码授权失败'));
+      }
+
+      _cxApi.setLoggingInFlag(true);
+      final userDto = await _cxApi.getUserInfo();
+      _cxApi.setLoggingInFlag(false);
+
+      if (userDto == null) {
+        return const Left(Failure.auth(message: '获取用户信息失败'));
+      }
+      final user = userDto.toEntity();
+
+      await _cookieManager.saveTempCookiesToUser(user.uid);
+      await _cookieManager.saveCookiesForUser(user.uid);
+      await _accountRepo.addAccount(user);
+      await _accountRepo.setCurrentSession(user.uid);
+      debugPrint('✅ 已保存 Cookie 用于自动登录');
+
+      return Right(user);
+    } on DioException catch (e) {
+      _cxApi.setLoggingInFlag(false);
+      return Left(
+        Failure.network(
+          message: e.message ?? '网络错误',
+          statusCode: e.response?.statusCode,
+        ),
+      );
+    } catch (e) {
+      _cxApi.setLoggingInFlag(false);
+      return Left(Failure.unknown(message: e.toString(), error: e));
+    }
   }
 
   @override

@@ -12,6 +12,23 @@ class AuthController extends _$AuthController {
   @override
   AsyncValue<User?> build() => const AsyncValue.data(null);
 
+  Future<void> loginWithApp(String username, String password) async {
+    state = const AsyncValue.loading();
+    try {
+      final result = await AppDependencies.instance.loginUseCase
+          .executeWithApp(username, password);
+      result.fold(
+        (failure) => state = AsyncValue.error(failure, StackTrace.current),
+        (user) {
+          state = AsyncValue.data(user);
+          _onLoginSuccess(user);
+        },
+      );
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
   Future<void> loginWithPassword(String username, String password) async {
     state = const AsyncValue.loading();
     try {
@@ -87,5 +104,12 @@ class AuthController extends _$AuthController {
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
+  }
+
+  void resetState() => state = const AsyncValue.data(null);
+
+  void setUserFromQRLogin(User user) {
+    state = AsyncValue.data(user);
+    _onLoginSuccess(user);
   }
 }

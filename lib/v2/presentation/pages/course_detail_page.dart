@@ -309,6 +309,7 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
       case ActiveType.signIn:
       case ActiveType.scheduledSignIn:
       case ActiveType.signOut:
+      case ActiveType.groupSignIn:
         context.push(
           '/signin/${active.id}?courseId=${widget.courseId}&classId=${widget.classId}&cpi=${widget.cpi}',
         );
@@ -388,26 +389,50 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
       String? matchedGroupName;
 
       for (final group in groups) {
-        final extJson = group.extension?.isNotEmpty == true
-            ? group.extension
-            : (group.desc?.isNotEmpty == true ? group.desc : null);
+        try {
+          final groupInfo = await EMClient.getInstance.groupManager
+              .fetchGroupInfoFromServer(group.groupId);
 
-        if (extJson != null && extJson.isNotEmpty) {
-          try {
+          final extJson = groupInfo.desc?.isNotEmpty == true
+              ? groupInfo.desc
+              : (groupInfo.extension?.isNotEmpty == true
+                    ? groupInfo.extension
+                    : null);
+
+          if (extJson != null && extJson.isNotEmpty) {
             final ext = jsonDecode(extJson) as Map<String, dynamic>;
             final courseInfo = ext['courseInfo'];
-            if (courseInfo != null) {
-              final groupId = courseInfo['courseid']?.toString();
-              if (groupId == widget.courseId) {
+            if (courseInfo != null && courseInfo is Map) {
+              // 查找 courseid 键（可能有空格）
+              String? courseIdInGroup;
+              for (final key in courseInfo.keys) {
+                if (key.trim() == 'courseid') {
+                  courseIdInGroup = courseInfo[key]?.toString();
+                  break;
+                }
+              }
+
+              if (courseIdInGroup == widget.courseId) {
+                // 查找 coursename 键（可能有空格）
+                String? courseNameInGroup;
+                for (final key in courseInfo.keys) {
+                  if (key.trim() == 'coursename') {
+                    courseNameInGroup = courseInfo[key]?.toString();
+                    break;
+                  }
+                }
+
                 matchedGroupId = group.groupId;
                 matchedGroupName =
-                    courseInfo['coursename']?.toString() ??
-                    group.groupName ??
-                    '课程群聊';
+                    courseNameInGroup ?? groupInfo.groupName ?? '课程群聊';
                 break;
               }
             }
-          } catch (_) {}
+          }
+        } catch (e) {
+          debugPrint(
+            '[CourseDetail] Failed to fetch group info for ${group.groupId}: $e',
+          );
         }
       }
 

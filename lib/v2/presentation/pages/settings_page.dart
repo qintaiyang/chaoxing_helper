@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../controllers/auth_controller.dart';
 import '../providers/providers.dart';
+import '../providers/activity_popup_preferences_provider.dart';
 import '../../domain/entities/user.dart';
+import '../widgets/battery_optimization_dialog.dart';
 
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
@@ -19,7 +22,7 @@ class SettingsPage extends ConsumerWidget {
         children: [
           _buildAccountSection(context, ref, currentUser),
           const Divider(height: 1),
-          _buildGeneralSection(context),
+          _buildGeneralSection(context, ref),
           const Divider(height: 1),
           _buildAboutSection(context),
         ],
@@ -74,10 +77,36 @@ class SettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildGeneralSection(BuildContext context) {
+  Widget _buildGeneralSection(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(
+            '通知',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ),
+        if (Platform.isAndroid)
+          ListTile(
+            leading: const Icon(Icons.battery_alert),
+            title: const Text('后台通知设置'),
+            subtitle: const Text('电池优化、自启动管理，确保后台正常接收消息'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => BatteryOptimizationDialog.show(context),
+          ),
+        ListTile(
+          leading: const Icon(Icons.notifications),
+          title: const Text('IM 消息通知'),
+          subtitle: const Text('群组聊天、课程活动通知自动推送'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _showNotificationInfo(context),
+        ),
+        _buildActivityPopupToggle(context, ref),
+        const Divider(height: 1),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Text(
@@ -101,6 +130,59 @@ class SettingsPage extends ConsumerWidget {
           onTap: () => _clearCache(context),
         ),
       ],
+    );
+  }
+
+  Widget _buildActivityPopupToggle(BuildContext context, WidgetRef ref) {
+    final popupPrefs = ref.watch(activityPopupPreferencesProvider);
+    return SwitchListTile(
+      secondary: const Icon(Icons.chat_bubble_outline),
+      title: const Text('活动/签到弹窗'),
+      subtitle: const Text('收到签到、活动等通知时显示弹窗'),
+      value: popupPrefs.enabled,
+      onChanged: (value) {
+        ref.read(activityPopupPreferencesProvider.notifier).setEnabled(value);
+      },
+    );
+  }
+
+  void _showNotificationInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('通知说明'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '• 应用使用环信 IM 实时推送群组消息',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• 应用退到后台时，前台服务会保持连接不中断',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• 建议关闭电池优化，避免系统杀死后台',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• 建议开启自启动权限，保持常驻后台',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
     );
   }
 

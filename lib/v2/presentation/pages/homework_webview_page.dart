@@ -40,6 +40,7 @@ class _HomeworkWebViewPageState extends State<HomeworkWebViewPage> {
   bool _loading = true;
   bool _hasError = false;
   String _errorMessage = '';
+  bool _isLoginPage = false;
 
   final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isRecording = false;
@@ -52,6 +53,35 @@ class _HomeworkWebViewPageState extends State<HomeworkWebViewPage> {
   void initState() {
     super.initState();
     _initWebView();
+  }
+
+  bool _isLoginPageUrl(String url) {
+    return url.contains('passport2.chaoxing.com') ||
+        url.contains('passport.chaoxing.com') ||
+        (url.contains('login') && url.contains('chaoxing.com'));
+  }
+
+  Future<void> _checkLoginPage() async {
+    try {
+      final currentUrl = await _controller.currentUrl();
+      if (currentUrl != null && _isLoginPageUrl(currentUrl)) {
+        debugPrint('检测到登录页面: $currentUrl');
+        if (mounted) {
+          setState(() {
+            _isLoginPage = true;
+            _loading = false;
+          });
+        }
+      } else {
+        if (mounted && _isLoginPage) {
+          setState(() {
+            _isLoginPage = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('检查登录页面失败: $e');
+    }
   }
 
   Future<void> _initWebView() async {
@@ -92,6 +122,7 @@ class _HomeworkWebViewPageState extends State<HomeworkWebViewPage> {
             await _injectChaoxingMobileStyles();
             await _injectCookiesViaJs();
             await _setupFileInputInterceptor();
+            await _checkLoginPage();
 
             if (mounted) {
               setState(() {
@@ -1187,6 +1218,31 @@ class _HomeworkWebViewPageState extends State<HomeworkWebViewPage> {
                         _initWebView();
                       },
                       child: const Text('重试'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (_isLoginPage)
+            Container(
+              color: Colors.white,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 64,
+                      color: Colors.orange,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      '请重新打开该页面',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                   ],
                 ),

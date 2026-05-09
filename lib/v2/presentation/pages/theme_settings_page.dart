@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/theme_provider.dart';
 import '../utils/image_picker_helper.dart';
 import '../../infra/theme/theme_data.dart';
@@ -31,6 +32,20 @@ class ThemeSettingsPage extends ConsumerWidget {
             (t) => _buildThemeCard(context, ref, t, currentTheme),
           ),
           const SizedBox(height: 24),
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              leading: Icon(
+                Icons.apps,
+                color: theme.colorScheme.primary,
+              ),
+              title: const Text('自定义图标和启动图'),
+              subtitle: const Text('更换应用图标和启动画面'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/custom-icon-splash'),
+            ),
+          ),
+          const SizedBox(height: 24),
           Text(
             '自定义页面背景',
             style: theme.textTheme.titleMedium?.copyWith(
@@ -46,6 +61,32 @@ class ThemeSettingsPage extends ConsumerWidget {
           _buildCustomBgSection(context, ref, '云盘页面', 'pan_page'),
           _buildCustomBgSection(context, ref, '账号页面', 'accounts_page'),
           _buildCustomBgSection(context, ref, '课程详情', 'course_detail'),
+          _buildCustomBgSection(context, ref, '群组页面', 'group_list_page'),
+          _buildCustomBgSection(context, ref, '通知收件箱', 'notice_inbox_page'),
+          _buildCustomBgSection(context, ref, '课程列表', 'course_list_page'),
+          _buildCustomBgSection(context, ref, '设置页面', 'settings_page'),
+          _buildCustomBgSection(context, ref, '登录页面', 'login_page'),
+          _buildCustomBgSection(context, ref, '作业列表', 'homework_list_page'),
+          _buildCustomBgSection(context, ref, '考试列表', 'exam_list_page'),
+          _buildCustomBgSection(context, ref, '签到页面', 'sign_in_page'),
+          _buildCustomBgSection(context, ref, '问卷页面', 'questionnaire_page'),
+          _buildCustomBgSection(context, ref, '投票页面', 'vote_page'),
+          _buildCustomBgSection(context, ref, '测验页面', 'quiz_page'),
+          _buildCustomBgSection(context, ref, '待办页面', 'todo_page'),
+          _buildCustomBgSection(context, ref, '通知列表', 'notice_list_page'),
+          _buildCustomBgSection(context, ref, '通知详情', 'notice_detail_page'),
+          _buildCustomBgSection(context, ref, '资料列表', 'materials_list_page'),
+          _buildCustomBgSection(context, ref, '搜索添加好友', 'search_add_friend_page'),
+          _buildCustomBgSection(context, ref, '修改密码', 'change_password_page'),
+          _buildCustomBgSection(context, ref, '文件预览', 'file_preview_page'),
+          _buildCustomBgSection(context, ref, '资料预览', 'material_preview_page'),
+          _buildCustomBgSection(context, ref, '作业WebView', 'homework_webview_page'),
+          _buildCustomBgSection(context, ref, '考试WebView', 'exam_webview_page'),
+          _buildCustomBgSection(context, ref, '活动WebView', 'activity_webview_page'),
+          _buildCustomBgSection(context, ref, '自定义图标启动图', 'custom_icon_splash_page'),
+          _buildCustomBgSection(context, ref, '位置选择', 'location_select_page'),
+          _buildCustomBgSection(context, ref, '扫码页面', 'scan_page'),
+          _buildCustomBgSection(context, ref, '主页', 'main_page'),
         ],
       ),
     );

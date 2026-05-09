@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../domain/entities/push_notification.dart';
+import '../../domain/entities/notification.dart';
 
 class PushDispatcher {
-  final GlobalKey<NavigatorState> navigatorKey;
+  static final PushDispatcher _instance = PushDispatcher._internal();
+  factory PushDispatcher({GlobalKey<NavigatorState>? navigatorKey}) =>
+      _instance;
+  PushDispatcher._internal();
+
+  GlobalKey<NavigatorState>? navigatorKey;
 
   final List<PushNotification> _recentNotifications = [];
   static const int maxRecentCount = 50;
 
   final ValueNotifier<int> pushCount = ValueNotifier<int>(0);
 
-  PushDispatcher({required this.navigatorKey});
+  bool _popupEnabled = true;
+
+  bool get popupEnabled => _popupEnabled;
+  set popupEnabled(bool value) {
+    _popupEnabled = value;
+  }
 
   void dispatch(BuildContext context, PushNotification notification) {
     _recentNotifications.insert(0, notification);
@@ -20,16 +30,15 @@ class PushDispatcher {
 
     pushCount.value++;
 
-    debugPrint(
-      '[PushDispatcher] ${notification.channel.label}: ${notification.title}',
-    );
+    if (!_popupEnabled) {
+      return;
+    }
 
     if (PushCategory.isHomework(notification.category.activeType)) {
       _showHomeworkDialog(context, notification);
     } else if (notification.isGroupSign) {
       _showGroupSignDialog(context, notification);
-    } else if (notification.category == PushCategory.signIn ||
-        notification.category == PushCategory.scheduledSignIn) {
+    } else if (PushCategory.isSignIn(notification.category.activeType)) {
       _showSignInDialog(context, notification);
     } else {
       _showActivityDialog(context, notification);
@@ -42,7 +51,7 @@ class PushDispatcher {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            Icon(n.category.icon, color: Theme.of(context).colorScheme.primary),
+            const Icon(Icons.assignment),
             const SizedBox(width: 8),
             const Expanded(child: Text('新作业')),
           ],
@@ -51,10 +60,7 @@ class PushDispatcher {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              '知道了',
-              style: TextStyle(color: Theme.of(context).colorScheme.primary),
-            ),
+            child: const Text('知道了'),
           ),
           if (n.hasHomeworkLink)
             FilledButton(
@@ -75,7 +81,7 @@ class PushDispatcher {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            Icon(n.category.icon, color: Theme.of(context).colorScheme.primary),
+            const Icon(Icons.event),
             const SizedBox(width: 8),
             const Expanded(child: Text('课程活动')),
           ],
@@ -84,10 +90,7 @@ class PushDispatcher {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              '知道了',
-              style: TextStyle(color: Theme.of(context).colorScheme.primary),
-            ),
+            child: const Text('知道了'),
           ),
           FilledButton(
             onPressed: () {
@@ -107,7 +110,7 @@ class PushDispatcher {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            Icon(n.category.icon, color: Theme.of(context).colorScheme.primary),
+            const Icon(Icons.group_work),
             const SizedBox(width: 8),
             const Expanded(child: Text('群聊签到')),
           ],
@@ -116,10 +119,7 @@ class PushDispatcher {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              '知道了',
-              style: TextStyle(color: Theme.of(context).colorScheme.primary),
-            ),
+            child: const Text('知道了'),
           ),
           FilledButton(
             onPressed: () {
@@ -139,7 +139,7 @@ class PushDispatcher {
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
-            Icon(n.category.icon, color: Theme.of(context).colorScheme.primary),
+            const Icon(Icons.check_circle),
             const SizedBox(width: 8),
             Expanded(child: Text(n.category.label)),
           ],
@@ -148,10 +148,7 @@ class PushDispatcher {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(
-              '知道了',
-              style: TextStyle(color: Theme.of(context).colorScheme.primary),
-            ),
+            child: const Text('知道了'),
           ),
           FilledButton(
             onPressed: () {
@@ -167,7 +164,6 @@ class PushDispatcher {
 
   void _navigateToHomework(BuildContext context, PushNotification n) {
     if (n.courseId.isEmpty || n.homeworkId == null) {
-      debugPrint('[PushDispatcher] 缺少作业参数，无法导航');
       return;
     }
     final url =
@@ -175,15 +171,15 @@ class PushDispatcher {
         '?classId=${n.classId}'
         '&cpi=${n.cpi}'
         '${n.homeworkUrl != null ? '&taskUrl=${Uri.encodeComponent(n.homeworkUrl!)}' : ''}';
-    context.push(url);
-    debugPrint(
-      '[PushDispatcher] 导航到作业页面: courseId=${n.courseId}, workId=${n.homeworkId}',
-    );
+    if (navigatorKey?.currentContext != null) {
+      navigatorKey!.currentContext!.push(url);
+    } else {
+      context.push(url);
+    }
   }
 
   void _navigateToActivity(BuildContext context, PushNotification n) {
     if (n.courseId.isEmpty) {
-      debugPrint('[PushDispatcher] 缺少课程ID，无法导航');
       return;
     }
     final url =
@@ -191,19 +187,24 @@ class PushDispatcher {
         '?classId=${n.classId}'
         '&cpi=${n.cpi}'
         '&name=${Uri.encodeComponent(n.courseName)}';
-    context.push(url);
-    debugPrint('[PushDispatcher] 导航到课程详情: ${n.courseId}');
+    if (navigatorKey?.currentContext != null) {
+      navigatorKey!.currentContext!.push(url);
+    } else {
+      context.push(url);
+    }
   }
 
   void _navigateToSignIn(BuildContext context, PushNotification n) {
     final activeId = n.rawData['aid']?.toString() ?? '';
     if (activeId.isEmpty) {
-      debugPrint('[PushDispatcher] 缺少签到ID，无法导航');
       return;
     }
     final url = '/signin/$activeId?courseId=${n.courseId}';
-    context.push(url);
-    debugPrint('[PushDispatcher] 导航到签到页面: activeId=$activeId');
+    if (navigatorKey?.currentContext != null) {
+      navigatorKey!.currentContext!.push(url);
+    } else {
+      context.push(url);
+    }
   }
 
   List<PushNotification> get recentNotifications =>

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -31,14 +29,12 @@ class _UserNoticeInboxPageState extends ConsumerState<UserNoticeInboxPage> {
   bool _isRefreshing = false;
   int _unreadCount = 0;
   String _puid = '';
-  Timer? _pollTimer;
   Set<int> _readIds = {};
 
   @override
   void initState() {
     super.initState();
     _loadPuidAndNotices();
-    _startPolling();
   }
 
   @override
@@ -52,7 +48,6 @@ class _UserNoticeInboxPageState extends ConsumerState<UserNoticeInboxPage> {
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
     super.dispose();
   }
 
@@ -97,7 +92,7 @@ class _UserNoticeInboxPageState extends ConsumerState<UserNoticeInboxPage> {
 
   void _onPushDispatched() {
     if (_puid.isEmpty || _isRefreshing || _isLoading) return;
-    _checkAndFetchNewNotices();
+    _loadAllNotices();
   }
 
   Future<void> _loadAllNotices() async {
@@ -171,69 +166,6 @@ class _UserNoticeInboxPageState extends ConsumerState<UserNoticeInboxPage> {
           duration: Duration(seconds: 1),
         ),
       );
-    }
-  }
-
-  void _startPolling() {
-    _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted && !_isRefreshing && !_isLoading) {
-        _checkAndFetchNewNotices();
-      }
-    });
-  }
-
-  Future<void> _checkAndFetchNewNotices() async {
-    if (_puid.isEmpty) return;
-
-    try {
-      final noticeController = ref.read(
-        userNoticeListControllerProvider.notifier,
-      );
-      final status = await noticeController.checkNoticeStatus(_puid);
-      if (status != null && status['result'] == 1) {
-        final noticeStatus = status['data']['noticeStatus'];
-        if (noticeStatus == 1) {
-          debugPrint('检测到新通知，开始增量拉取...');
-          await _fetchIncrementNotices();
-        }
-      }
-    } catch (e) {
-      debugPrint('检查通知状态失败: $e');
-    }
-  }
-
-  Future<void> _fetchIncrementNotices() async {
-    try {
-      final noticeController = ref.read(
-        userNoticeListControllerProvider.notifier,
-      );
-      final allNotices = await noticeController.fetchNoticesOnce(_puid);
-      if (allNotices.isEmpty) return;
-
-      final existingIds = _notices.map((n) => int.tryParse(n.id) ?? 0).toSet();
-      final newNotices = allNotices.where((n) {
-        final id = int.tryParse(n.id) ?? 0;
-        return !existingIds.contains(id);
-      }).toList();
-
-      if (newNotices.isEmpty) return;
-
-      if (mounted) {
-        setState(() {
-          _notices.insertAll(0, newNotices);
-          _notices.sort((a, b) {
-            final idA = int.tryParse(a.id) ?? 0;
-            final idB = int.tryParse(b.id) ?? 0;
-            return idB.compareTo(idA);
-          });
-          _recalculateUnreadCount();
-        });
-      }
-
-      debugPrint('增量拉取成功，新增 ${newNotices.length} 条通知');
-    } catch (e) {
-      debugPrint('增量拉取失败: $e');
     }
   }
 

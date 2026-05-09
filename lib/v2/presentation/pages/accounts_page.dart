@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,7 +8,9 @@ import '../../domain/entities/user.dart';
 import '../../infra/theme/theme_extensions.dart';
 import '../controllers/course_controller.dart';
 import '../providers/providers.dart';
+import '../providers/activity_popup_preferences_provider.dart';
 import '../widgets/network_image.dart';
+import '../widgets/battery_optimization_dialog.dart';
 
 class AccountsPage extends ConsumerStatefulWidget {
   const AccountsPage({super.key});
@@ -25,6 +29,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   void initState() {
     super.initState();
     _loadAccounts();
+    _preloadCookies();
   }
 
   void _loadAccounts() {
@@ -42,6 +47,12 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       _currentAccountId = session;
       _accounts = accounts;
     });
+  }
+
+  Future<void> _preloadCookies() async {
+    final cookieManager = AppDependencies.instance.cookieManager;
+    final accountIds = _accounts.map((a) => a.uid).toList();
+    await cookieManager.preloadCookiesForAllUsers(accountIds);
   }
 
   void _toggleSelection(String userId) {
@@ -111,47 +122,135 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('设置'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.palette),
-              title: const Text('主题设置'),
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push('/theme-settings');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.lock_outline),
-              title: const Text('修改密码'),
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push('/change-password');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_forever),
-              title: const Text('清除所有缓存'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _clearAllCache();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('退出所有账号'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _logoutAll();
-              },
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (Platform.isAndroid)
+                ListTile(
+                  leading: const Icon(Icons.battery_alert),
+                  title: const Text('后台通知设置'),
+                  subtitle: const Text('电池优化、自启动管理，确保后台正常接收消息'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    BatteryOptimizationDialog.show(context);
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.notifications),
+                title: const Text('通知说明'),
+                subtitle: const Text('IM 消息通知、推送设置'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showNotificationInfo(context);
+                },
+              ),
+              Consumer(
+                builder: (context, ref, _) {
+                  final popupPrefs = ref.watch(
+                    activityPopupPreferencesProvider,
+                  );
+                  return SwitchListTile(
+                    secondary: const Icon(Icons.chat_bubble_outline),
+                    title: const Text('活动/签到弹窗'),
+                    subtitle: const Text('收到签到、活动等通知时显示弹窗'),
+                    value: popupPrefs.enabled,
+                    onChanged: (value) {
+                      ref
+                          .read(activityPopupPreferencesProvider.notifier)
+                          .setEnabled(value);
+                    },
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.palette),
+                title: const Text('主题设置'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/theme-settings');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.apps),
+                title: const Text('自定义图标和启动图'),
+                subtitle: const Text('更换应用图标和启动画面'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/custom-icon-splash');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.lock_outline),
+                title: const Text('修改密码'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('/change-password');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_forever),
+                title: const Text('清除所有缓存'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _clearAllCache();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.logout),
+                title: const Text('退出所有账号'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _logoutAll();
+                },
+              ),
+            ],
+          ),
         ),
         actions: [
           FilledButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showNotificationInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('通知说明'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '• 应用使用环信 IM 实时推送群组消息',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• 应用退到后台时，前台服务会保持连接不中断',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• 建议关闭电池优化，避免系统杀死后台',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• 建议开启自启动权限，保持常驻后台',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('知道了'),
           ),
         ],
       ),
@@ -266,7 +365,7 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
               if (currentAccount != null)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
                   color: theme.colorScheme.primaryContainer.withValues(
                     alpha: 0.3,
                   ),
@@ -312,7 +411,11 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
                     ],
                   ),
                 ),
-              const SizedBox(height: 8),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: theme.colorScheme.outline.withValues(alpha: 0.1),
+              ),
               Expanded(
                 child: _accounts.isEmpty
                     ? Center(
@@ -410,14 +513,16 @@ class _AccountsPageState extends ConsumerState<AccountsPage> {
   Decoration? _buildBackgroundDecoration(BuildContext context) {
     final theme = Theme.of(context);
     final bgExt = theme.extension<ThemeBackgrounds>();
-    const pageKey = 'accounts_page';
-    final decoration = bgExt?.getBackgroundDecoration(pageKey);
+    final decoration = bgExt?.getBackgroundDecoration('accounts_page');
     if (decoration != null) return decoration;
     return BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [theme.colorScheme.surfaceContainer, theme.colorScheme.surface],
+        colors: [
+          theme.colorScheme.primary.withValues(alpha: 0.3),
+          theme.colorScheme.surface,
+        ],
       ),
     );
   }

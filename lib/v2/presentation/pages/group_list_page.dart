@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:im_flutter_sdk/im_flutter_sdk.dart';
 import '../../app_dependencies.dart';
 import '../../data/datasources/remote/chaoxing/cx_friend_contact_api.dart';
+import '../../domain/entities/notification.dart';
 import '../../infra/services/dnd_service.dart';
 import '../../infra/services/member_name_cache.dart';
+import '../../infra/theme/theme_extensions.dart';
 import '../providers/providers.dart';
 import '../widgets/network_image.dart';
 import '../widgets/staggered_animation.dart';
@@ -14,6 +16,8 @@ import 'scan_page.dart';
 import 'group_chat_page.dart';
 import 'notice_inbox_page.dart';
 import 'search_add_friend_page.dart';
+
+const _kGroupListPageKey = 'group_list_page';
 
 final _dndService = DndService();
 
@@ -37,13 +41,13 @@ class GroupListPageState extends ConsumerState<GroupListPage>
   bool _hasLoadedOnce = false;
   bool _isLoadingConv = false;
   String? _error;
-  late TabController _tabCtrl;
   StreamSubscription<EMMessage>? _msgSub;
+  Timer? _saveCacheTimer;
+  Map<String, int> _convIndexMap = {}; // O(1) lookup map
 
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
     _loadFromCache();
     _loadConversations();
     _subscribeMessages();
@@ -51,7 +55,7 @@ class GroupListPageState extends ConsumerState<GroupListPage>
 
   @override
   void dispose() {
-    _tabCtrl.dispose();
+    _saveCacheTimer?.cancel();
     _isLoadingNotifier.dispose();
     _msgSub?.cancel();
     super.dispose();
@@ -74,63 +78,47 @@ class GroupListPageState extends ConsumerState<GroupListPage>
   }
 
   void _onNewMessageReceived(EMMessage message) {
-    if (_conversations.isEmpty && !_hasLoadedOnce) {
-      _loadConversations();
-      return;
-    }
-
     final chatId = message.conversationId ?? message.to;
     if (chatId == null) return;
 
     final isGroup = message.chatType == ChatType.GroupChat;
-    final index = _conversations.indexWhere((c) => c.id == chatId);
+    final index = _convIndexMap[chatId] ?? -1;
 
-    String lastMessageText = '';
-    if (message.body is EMTextMessageBody) {
-      lastMessageText = (message.body as EMTextMessageBody).content;
-    } else if (message.body is EMImageMessageBody) {
-      lastMessageText = '[图片]';
-    } else if (message.body is EMFileMessageBody) {
-      lastMessageText =
-          '[文件: ${(message.body as EMFileMessageBody).displayName ?? "文件"}]';
-    } else if (message.body is EMVoiceMessageBody) {
-      lastMessageText = '[语音]';
-    } else if (message.body is EMVideoMessageBody) {
-      lastMessageText = '[视频]';
-    } else if (message.body is EMLocationMessageBody) {
-      lastMessageText = '[位置]';
-    } else if (message.body is EMCustomMessageBody) {
-      lastMessageText = '[${(message.body as EMCustomMessageBody).event}]';
-    } else {
-      return;
-    }
-
+    String lastMessageText = _formatMessagePreview(message, isGroup);
     if (lastMessageText.isEmpty) return;
-
-    if (isGroup) {
-      final sender = message.from;
-      if (sender != null && sender.isNotEmpty) {
-        final userName = _resolveSenderNameFromMessage(message, sender);
-        if (userName.isNotEmpty && userName != sender) {
-          lastMessageText = '$userName: $lastMessageText';
-        }
-      }
-    }
 
     if (lastMessageText.length > 30) {
       lastMessageText = '${lastMessageText.substring(0, 30)}...';
     }
 
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final messageTime = message.serverTime > 0
+        ? message.serverTime
+        : DateTime.now().millisecondsSinceEpoch;
 
     if (index == -1) {
       unawaited(
-        _buildConvInfoFromMessage(message, chatId, isGroup).then((convInfo) {
+        _buildConvInfoFromMessage(message, chatId, isGroup).then((
+          convInfo,
+        ) async {
           if (convInfo != null && mounted) {
+            final updatedConv = _ConvInfo(
+              id: convInfo.id,
+              name: convInfo.name,
+              icon: convInfo.icon,
+              isGroup: convInfo.isGroup,
+              unread: convInfo.unread,
+              lastMsg: convInfo.lastMsg,
+              time: messageTime,
+              memberCount: convInfo.memberCount,
+              courseId: convInfo.courseId,
+            );
             setState(() {
-              _conversations.insert(0, convInfo);
+              _conversations.insert(0, updatedConv);
+              _rebuildIndexMap();
+              _hasLoadedOnce = true;
             });
-            _saveToCache();
+            await _saveMessageToSdkLocal(message, chatId, isGroup);
+            _debouncedSaveCache();
           }
         }),
       );
@@ -145,7 +133,7 @@ class GroupListPageState extends ConsumerState<GroupListPage>
       isGroup: existing.isGroup,
       unread: existing.unread + 1,
       lastMsg: lastMessageText,
-      time: now,
+      time: messageTime,
       memberCount: existing.memberCount,
       courseId: existing.courseId,
     );
@@ -153,8 +141,43 @@ class GroupListPageState extends ConsumerState<GroupListPage>
     setState(() {
       _conversations.removeAt(index);
       _conversations.insert(0, updated);
+      _rebuildIndexMap();
     });
-    _saveToCache();
+    unawaited(_saveMessageToSdkLocal(message, chatId, isGroup));
+    _debouncedSaveCache();
+    _syncUnreadCountWithSdk(chatId, isGroup);
+  }
+
+  void _rebuildIndexMap() {
+    _convIndexMap.clear();
+    for (int i = 0; i < _conversations.length; i++) {
+      _convIndexMap[_conversations[i].id] = i;
+    }
+  }
+
+  void _debouncedSaveCache() {
+    _saveCacheTimer?.cancel();
+    _saveCacheTimer = Timer(const Duration(seconds: 2), _saveToCache);
+  }
+
+  Future<void> _saveMessageToSdkLocal(
+    EMMessage message,
+    String chatId,
+    bool isGroup,
+  ) async {
+    try {
+      final conv = await EMClient.getInstance.chatManager.getConversation(
+        chatId,
+        type: isGroup ? EMConversationType.GroupChat : EMConversationType.Chat,
+        createIfNeed: true,
+      );
+      if (conv != null) {
+        await conv.insertMessage(message);
+        debugPrint('消息已保存到SDK本地存储: chatId=$chatId, msgId=${message.msgId}');
+      }
+    } catch (e) {
+      debugPrint('保存消息到SDK本地存储失败: $e');
+    }
   }
 
   Future<_ConvInfo?> _buildConvInfoFromMessage(
@@ -216,6 +239,7 @@ class GroupListPageState extends ConsumerState<GroupListPage>
               setState(() {
                 _conversations.clear();
                 _conversations.addAll(convs);
+                _rebuildIndexMap();
                 _isLoadingNotifier.value = false;
               });
               debugPrint('从缓存加载了 ${convs.length} 个会话');
@@ -283,9 +307,14 @@ class GroupListPageState extends ConsumerState<GroupListPage>
         setState(() {
           _conversations.clear();
           _conversations.addAll(validConvs);
+          _rebuildIndexMap();
           _hasLoadedOnce = true;
           _isLoadingNotifier.value = false;
         });
+
+        for (final conv in validConvs) {
+          _syncUnreadCountWithSdk(conv.id, conv.isGroup);
+        }
       }
 
       _saveToCache();
@@ -519,45 +548,18 @@ class GroupListPageState extends ConsumerState<GroupListPage>
       final msgs = await conv.loadMessages(loadCount: 5);
 
       if (msgs.isNotEmpty) {
-        for (final msg in msgs) {
-          if (msg.direction == MessageDirection.SEND) continue;
+        final msg = msgs.reduce((a, b) {
+          final timeA = a.serverTime > 0 ? a.serverTime : a.localTime;
+          final timeB = b.serverTime > 0 ? b.serverTime : b.localTime;
+          return timeA >= timeB ? a : b;
+        });
 
-          lastMsgTime = msg.serverTime;
+        lastMsgTime = msg.serverTime > 0 ? msg.serverTime : msg.localTime;
 
-          if (msg.body is EMTextMessageBody) {
-            lastMessageText = (msg.body as EMTextMessageBody).content;
-            if (lastMessageText.length > 30) {
-              lastMessageText = '${lastMessageText.substring(0, 30)}...';
-            }
-          } else if (msg.body is EMImageMessageBody) {
-            lastMessageText = '[图片]';
-          } else if (msg.body is EMFileMessageBody) {
-            final body = msg.body as EMFileMessageBody;
-            final displayName = body.displayName?.isNotEmpty == true
-                ? body.displayName
-                : '文件';
-            lastMessageText = '[文件: $displayName]';
-          } else if (msg.body is EMVoiceMessageBody) {
-            lastMessageText = '[语音]';
-          } else if (msg.body is EMVideoMessageBody) {
-            lastMessageText = '[视频]';
-          } else if (msg.body is EMLocationMessageBody) {
-            lastMessageText = '[位置]';
-          } else if (msg.body is EMCustomMessageBody) {
-            lastMessageText = '[${(msg.body as EMCustomMessageBody).event}]';
-          }
+        lastMessageText = _formatMessagePreview(msg, isGroup);
 
-          if (isGroup) {
-            final sender = msg.from;
-            if (sender != null && sender.isNotEmpty) {
-              final userName = _resolveSenderNameFromMessage(msg, sender);
-              if (userName.isNotEmpty && userName != sender) {
-                lastMessageText = '$userName: $lastMessageText';
-              }
-            }
-          }
-
-          if (lastMessageText.isNotEmpty) break;
+        if (lastMessageText.length > 30) {
+          lastMessageText = '${lastMessageText.substring(0, 30)}...';
         }
       }
     } catch (e) {
@@ -565,6 +567,53 @@ class GroupListPageState extends ConsumerState<GroupListPage>
     }
 
     return {'lastMessage': lastMessageText, 'lastMsgTime': lastMsgTime};
+  }
+
+  Future<void> _syncUnreadCountWithSdk(String chatId, bool isGroup) async {
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      final conv = await EMClient.getInstance.chatManager.getConversation(
+        chatId,
+        type: isGroup ? EMConversationType.GroupChat : EMConversationType.Chat,
+        createIfNeed: false,
+      );
+
+      if (conv == null || !mounted) return;
+
+      int actualUnread = 0;
+      try {
+        actualUnread = await conv.unreadCount();
+      } catch (e) {
+        debugPrint('获取SDK未读计数失败: $e');
+        return;
+      }
+
+      final index = _convIndexMap[chatId] ?? -1;
+      if (index == -1 || !mounted) return;
+
+      final current = _conversations[index];
+      if (current.unread != actualUnread) {
+        setState(() {
+          _conversations[index] = _ConvInfo(
+            id: current.id,
+            name: current.name,
+            icon: current.icon,
+            isGroup: current.isGroup,
+            unread: actualUnread,
+            lastMsg: current.lastMsg,
+            time: current.time,
+            memberCount: current.memberCount,
+            courseId: current.courseId,
+          );
+        });
+        debugPrint(
+          '同步未读计数: $chatId, SDK未读=$actualUnread, 缓存未读=${current.unread}',
+        );
+      }
+    } catch (e) {
+      debugPrint('同步未读计数失败: $e');
+    }
   }
 
   Future<void> _refreshUnreadCount(String groupId) async {
@@ -740,25 +789,6 @@ class GroupListPageState extends ConsumerState<GroupListPage>
     try {
       final deps = AppDependencies.instance;
 
-      final signDetailResult = await deps.getSignDetailUseCase.execute(
-        activeId,
-      );
-      final signCode = signDetailResult.fold(
-        (_) => null,
-        (detail) => detail['signCode'] as String?,
-      );
-
-      final uri = Uri.parse(
-        'https://mobilelearn.chaoxing.com/widget/sign/e?id=$activeId&enc=$enc',
-      );
-      final c = uri.queryParameters['c'];
-
-      if (signCode != null && signCode.isNotEmpty && c != signCode) {
-        if (mounted) Navigator.of(context, rootNavigator: true).pop();
-        _showSnackBar('二维码已过期');
-        return;
-      }
-
       final session = deps.accountRepo.getCurrentSessionId().fold(
         (_) => null,
         (id) => id,
@@ -774,7 +804,7 @@ class GroupListPageState extends ConsumerState<GroupListPage>
       }
 
       final result = await deps.qrCodeSignInUseCase.execute(
-        courseId: '',
+        courseId: null,
         activeId: activeId,
         enc: enc,
         uid: user.uid,
@@ -879,6 +909,109 @@ class GroupListPageState extends ConsumerState<GroupListPage>
     }
   }
 
+  String _formatMessagePreview(EMMessage message, bool isGroup) {
+    String text = '';
+
+    if (message.attributes != null && message.attributes is Map) {
+      final attrMap = message.attributes as Map;
+      final attachment = attrMap['attachment'];
+
+      if (attachment is Map) {
+        if (attachment.containsKey('att_chat_course')) {
+          final activeInfo =
+              attachment['att_chat_course'] as Map<String, dynamic>;
+          final int activeTypeValue = activeInfo['activeType'] is int
+              ? activeInfo['activeType']
+              : int.tryParse(activeInfo['activeType']?.toString() ?? '0') ?? 0;
+          final String typeTitle =
+              activeInfo['typeTitle'] ?? activeInfo['title'] ?? '';
+          final category = PushCategory.fromActiveType(activeTypeValue);
+
+          final prefix = category == PushCategory.system
+              ? '[新活动]'
+              : '[新${category.label}]';
+          text = typeTitle.isNotEmpty ? '$prefix $typeTitle' : prefix;
+
+          if (isGroup) {
+            final sender = message.from;
+            if (sender != null && sender.isNotEmpty) {
+              final userName = _resolveSenderNameFromMessage(message, sender);
+              if (userName.isNotEmpty && userName != sender) {
+                text = '$userName: $text';
+              }
+            }
+          }
+          return text;
+        }
+
+        if (attachment.containsKey('att_homework')) {
+          final homeworkInfo =
+              attachment['att_homework'] as Map<String, dynamic>;
+          final title = homeworkInfo['title'] ?? '新作业';
+          text = '[新作业] $title';
+
+          if (isGroup) {
+            final sender = message.from;
+            if (sender != null && sender.isNotEmpty) {
+              final userName = _resolveSenderNameFromMessage(message, sender);
+              if (userName.isNotEmpty && userName != sender) {
+                text = '$userName: $text';
+              }
+            }
+          }
+          return text;
+        }
+
+        if (attachment.containsKey('att_group_sign')) {
+          final signInfo = attachment['att_group_sign'] as Map<String, dynamic>;
+          final title = signInfo['title'] ?? '群聊签到';
+          text = '[群签到] $title';
+
+          if (isGroup) {
+            final sender = message.from;
+            if (sender != null && sender.isNotEmpty) {
+              final userName = _resolveSenderNameFromMessage(message, sender);
+              if (userName.isNotEmpty && userName != sender) {
+                text = '$userName: $text';
+              }
+            }
+          }
+          return text;
+        }
+      }
+    }
+
+    if (message.body is EMTextMessageBody) {
+      text = (message.body as EMTextMessageBody).content;
+    } else if (message.body is EMImageMessageBody) {
+      text = '[图片]';
+    } else if (message.body is EMFileMessageBody) {
+      text = '[文件: ${(message.body as EMFileMessageBody).displayName ?? "文件"}]';
+    } else if (message.body is EMVoiceMessageBody) {
+      text = '[语音]';
+    } else if (message.body is EMVideoMessageBody) {
+      text = '[视频]';
+    } else if (message.body is EMLocationMessageBody) {
+      text = '[位置]';
+    } else if (message.body is EMCustomMessageBody) {
+      text = '[${(message.body as EMCustomMessageBody).event}]';
+    } else {
+      text = '[新消息]';
+    }
+
+    if (isGroup) {
+      final sender = message.from;
+      if (sender != null && sender.isNotEmpty) {
+        final userName = _resolveSenderNameFromMessage(message, sender);
+        if (userName.isNotEmpty && userName != sender) {
+          text = '$userName: $text';
+        }
+      }
+    }
+
+    return text;
+  }
+
   String _formatTime(int millisecondsSinceEpoch) {
     final time = DateTime.fromMillisecondsSinceEpoch(millisecondsSinceEpoch);
     final now = DateTime.now();
@@ -905,9 +1038,20 @@ class GroupListPageState extends ConsumerState<GroupListPage>
         _isLoadingConv = false;
         _hasLoadedOnce = false;
         _conversations.clear();
+        _convIndexMap.clear();
+        _error = null;
+        _msgSub?.cancel();
+        _msgSub = null;
         _dndService.clearForAccountChange();
+        _saveCacheTimer?.cancel();
+        setState(() {});
         _loadFromCache();
-        _loadConversations();
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _loadConversations();
+            _subscribeMessages();
+          }
+        });
       }
     });
 
@@ -935,13 +1079,6 @@ class GroupListPageState extends ConsumerState<GroupListPage>
               );
             },
             tooltip: '加好友',
-          ),
-          IconButton(
-            icon: const Icon(Icons.contacts),
-            onPressed: () {
-              _tabCtrl.animateTo(1);
-            },
-            tooltip: '通讯录',
           ),
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
@@ -972,53 +1109,32 @@ class GroupListPageState extends ConsumerState<GroupListPage>
             },
           ),
         ],
-        bottom: TabBar(
-          controller: _tabCtrl,
-          tabs: const [
-            Tab(text: '会话'),
-            Tab(text: '通讯录'),
-          ],
-        ),
       ),
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-              Theme.of(context).colorScheme.surface,
-            ],
-          ),
-        ),
+        decoration: _buildBackgroundDecoration(context),
         child: Padding(
           padding: EdgeInsets.only(
-            top:
-                kToolbarHeight +
-                kTextTabBarHeight +
-                MediaQuery.of(context).padding.top,
+            top: kToolbarHeight + MediaQuery.of(context).padding.top,
           ),
-          child: TabBarView(
-            controller: _tabCtrl,
-            children: [
-              _buildChatList(),
-              ContactsSearchTab(
-                onChatOpen: (id, name) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => GroupChatPage(
-                        chatId: id,
-                        title: name,
-                        isGroup: false,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+          child: _buildChatList(),
         ),
+      ),
+    );
+  }
+
+  Decoration? _buildBackgroundDecoration(BuildContext context) {
+    final theme = Theme.of(context);
+    final bgExt = theme.extension<ThemeBackgrounds>();
+    final decoration = bgExt?.getBackgroundDecoration(_kGroupListPageKey);
+    if (decoration != null) return decoration;
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          theme.colorScheme.primary.withValues(alpha: 0.3),
+          theme.colorScheme.surface,
+        ],
       ),
     );
   }

@@ -45,5 +45,8 @@ class ErrorView extends StatelessWidget {
     storage: (message) => '数据读写异常',
     business: (message, code) => message,
     unknown: (message, error) => '未知错误，请稍后重试',
+    imageProcessing: (message) => '图片处理失败',
+    iconSwitchFailed: (message) => '图标切换失败',
+    splashUpdateFailed: (message) => '启动图更新失败',
   );
 }

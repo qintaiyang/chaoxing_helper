@@ -35,7 +35,7 @@ abstract class SignInRepository {
     String? faceId,
   });
   Future<Either<Failure, SignIn>> qrCodeSignIn({
-    required String courseId,
+    String? courseId,
     required String activeId,
     required String enc,
     required String uid,

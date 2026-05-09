@@ -7,6 +7,8 @@ import '../widgets/sign_areas/code_sign_area.dart';
 import '../widgets/sign_areas/location_sign_area.dart';
 import '../widgets/sign_areas/qr_code_sign_area.dart';
 import '../widgets/sign_areas/pattern_sign_area.dart';
+import '../widgets/sign_areas/group_sign_area.dart';
+import '../widgets/accounts_selector.dart';
 import '../controllers/sign_in_controller.dart';
 
 class SignInPage extends ConsumerStatefulWidget {
@@ -112,6 +114,15 @@ class _SignInPageState extends ConsumerState<SignInPage>
                   ),
                 ),
               ),
+            AccountsSelector(
+              onSelectionChanged: (selected) {
+                ref
+                    .read(signInControllerProvider.notifier)
+                    .setSelectedAccounts(selected);
+              },
+              initiallyExpanded: true,
+            ),
+            const SizedBox(height: 16),
             _buildSignArea(state),
           ],
         ),
@@ -163,6 +174,14 @@ class _SignInPageState extends ConsumerState<SignInPage>
         );
       case SignType.pattern:
         return PatternSignArea(
+          controller: controller,
+          courseId: widget.courseId,
+          activeId: widget.activeId,
+          classId: widget.classId,
+          cpi: widget.cpi,
+        );
+      case SignType.groupSignIn:
+        return GroupSignArea(
           controller: controller,
           courseId: widget.courseId,
           activeId: widget.activeId,

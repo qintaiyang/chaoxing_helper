@@ -16,4 +16,13 @@ sealed class Failure with _$Failure {
 
   const factory Failure.unknown({required String message, Object? error}) =
       UnknownFailure;
+
+  const factory Failure.imageProcessing({required String message}) =
+      ImageProcessingFailure;
+
+  const factory Failure.iconSwitchFailed({required String message}) =
+      IconSwitchFailed;
+
+  const factory Failure.splashUpdateFailed({required String message}) =
+      SplashUpdateFailed;
 }

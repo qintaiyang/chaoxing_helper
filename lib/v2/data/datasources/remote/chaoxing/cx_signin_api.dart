@@ -147,7 +147,7 @@ class CXSignInApi {
   }
 
   Future<SignInDto?> qrCodeSignIn({
-    required String courseId,
+    String? courseId,
     required String activeId,
     required String enc,
     required String uid,
@@ -163,37 +163,31 @@ class CXSignInApi {
       const url = 'https://mobilelearn.chaoxing.com/pptSign/stuSignajax';
       final params = <String, String>{
         'enc': enc,
-        'name': name,
-        'activeId': activeId,
         'uid': uid,
         'clientip': '',
-        'location': '',
-        'latitude': '-1',
-        'longitude': '-1',
-        'fid': '0',
-        'appType': '15',
-        'deviceCode': _getDeviceCode(),
-        'vpProbability': '',
-        'vpStrategy': '',
-        'enc2': '',
-        'validate': '',
-        'currentFaceId': '',
-        'ifCFP': '0',
-        'courseId': courseId,
+        'appType': '1530',
+        'latitude': latitude?.toString() ?? '-1',
+        'longitude': longitude?.toString() ?? '-1',
       };
 
-      if (address != null && latitude != null && longitude != null) {
-        final locationJson =
-            '{"result":1,"latitude":$latitude,"longitude":$longitude,"mockData":{"strategy":0,"probability":-1},"address":"$address"}';
-        params['location'] = locationJson;
+      if (activeId.isNotEmpty) {
+        params['activeId'] = activeId;
       }
-
-      if (enc2 != null && validate != null) {
+      if (courseId != null && courseId.isNotEmpty) {
+        params['courseId'] = courseId;
+      }
+      if (address != null && address.isNotEmpty) {
+        params['address'] = address;
+      }
+      if (enc2 != null && enc2.isNotEmpty) {
         params['enc2'] = enc2;
+      }
+      if (validate != null && validate.isNotEmpty) {
         params['validate'] = validate;
       }
-
-      if (faceId != null) params['currentFaceId'] = faceId;
+      if (faceId != null && faceId.isNotEmpty) {
+        params['currentFaceId'] = faceId;
+      }
 
       final response = await _client.sendRequest(
         url,

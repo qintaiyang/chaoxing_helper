@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../controllers/auth_controller.dart';
 import '../../app_dependencies.dart';
-import 'scan_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -15,9 +14,12 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _captchaController = TextEditingController();
+  final _passwordUsernameController = TextEditingController();
+  final _passwordPasswordController = TextEditingController();
+  final _captchaPhoneController = TextEditingController();
+  final _captchaCodeController = TextEditingController();
+  final _webUsernameController = TextEditingController();
+  final _webPasswordController = TextEditingController();
   bool _obscurePassword = true;
   late TabController _tabController;
   int _countdownSeconds = 0;
@@ -25,6 +27,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
   String? _qrUuid;
   String? _qrEnc;
   bool _qrLoading = false;
+  bool _isPolling = false;
 
   @override
   void initState() {
@@ -34,16 +37,19 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   @override
   void dispose() {
-    _usernameController.dispose();
-    _passwordController.dispose();
-    _captchaController.dispose();
+    _passwordUsernameController.dispose();
+    _passwordPasswordController.dispose();
+    _captchaPhoneController.dispose();
+    _captchaCodeController.dispose();
+    _webUsernameController.dispose();
+    _webPasswordController.dispose();
     _tabController.dispose();
     super.dispose();
   }
 
   Future<void> _handlePasswordLogin() async {
-    final username = _usernameController.text.trim();
-    final password = _passwordController.text.trim();
+    final username = _passwordUsernameController.text.trim();
+    final password = _passwordPasswordController.text.trim();
     if (username.isEmpty || password.isEmpty) {
       _showSnackBar('请输入账号和密码');
       return;
@@ -54,8 +60,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
   }
 
   Future<void> _handleCaptchaLogin() async {
-    final phone = _usernameController.text.trim();
-    final code = _captchaController.text.trim();
+    final phone = _captchaPhoneController.text.trim();
+    final code = _captchaCodeController.text.trim();
     if (phone.isEmpty) {
       _showSnackBar('请输入手机号');
       return;
@@ -68,8 +74,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
   }
 
   Future<void> _handleWebLogin() async {
-    final username = _usernameController.text.trim();
-    final password = _passwordController.text.trim();
+    final username = _webUsernameController.text.trim();
+    final password = _webPasswordController.text.trim();
     if (username.isEmpty || password.isEmpty) {
       _showSnackBar('请输入账号和密码');
       return;
@@ -80,7 +86,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
   }
 
   Future<void> _sendCaptcha() async {
-    final phone = _usernameController.text.trim();
+    final phone = _captchaPhoneController.text.trim();
     if (phone.isEmpty) {
       _showSnackBar('请输入手机号');
       return;
@@ -110,6 +116,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
   }
 
   Future<void> _loadQRCode() async {
+    _qrUuid = null;
+    _qrEnc = null;
     setState(() => _qrLoading = true);
     try {
       const loginPageUrl = 'https://passport2.chaoxing.com/login';
@@ -135,8 +143,13 @@ class _LoginPageState extends ConsumerState<LoginPage>
   }
 
   void _pollQRStatus() async {
+    if (_isPolling) return;
+    _isPolling = true;
+
     while (mounted && _qrUuid != null && _qrEnc != null) {
       await Future.delayed(const Duration(seconds: 3));
+      if (!mounted || _qrUuid == null || _qrEnc == null) break;
+
       try {
         final deps = AppDependencies.instance;
         final result = await deps.cxAuthApi.checkQRAuthStatus(
@@ -145,17 +158,37 @@ class _LoginPageState extends ConsumerState<LoginPage>
         );
         if (result != null && result['status'] == true) {
           if (mounted) {
-            final userResult = await deps.authRepo.getCurrentUser();
-            userResult.fold((_) {}, (user) {
-              ref.read(authControllerProvider.notifier).state = AsyncValue.data(
-                user,
-              );
-            });
+            final userResult = await deps.authRepo.loginWithQRCode(
+              _qrUuid!,
+              _qrEnc!,
+            );
+            userResult.fold(
+              (failure) {
+                if (mounted) {
+                  _showSnackBar('二维码登录失败: ${failure.message}');
+                }
+              },
+              (user) {
+                ref
+                    .read(authControllerProvider.notifier)
+                    .setUserFromQRLogin(user);
+              },
+            );
           }
-          return;
+          break;
+        } else if (result != null && result['type']?.toString() == '2') {
+          if (mounted) {
+            _showSnackBar('二维码已过期，正在刷新...');
+            _loadQRCode();
+          }
+          break;
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('二维码轮询异常: $e');
+      }
     }
+
+    _isPolling = false;
   }
 
   void _showSnackBar(String msg) {
@@ -222,7 +255,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         children: [
           const SizedBox(height: 20),
           TextField(
-            controller: _usernameController,
+            controller: _passwordUsernameController,
             decoration: const InputDecoration(
               labelText: '手机号',
               prefixIcon: Icon(Icons.phone_android),
@@ -232,7 +265,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _passwordController,
+            controller: _passwordPasswordController,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
               labelText: '密码',
@@ -284,7 +317,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         children: [
           const SizedBox(height: 20),
           TextField(
-            controller: _usernameController,
+            controller: _captchaPhoneController,
             decoration: const InputDecoration(
               labelText: '手机号',
               prefixIcon: Icon(Icons.phone_android),
@@ -297,7 +330,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
             children: [
               Expanded(
                 child: TextField(
-                  controller: _captchaController,
+                  controller: _captchaCodeController,
                   decoration: const InputDecoration(
                     labelText: '验证码',
                     prefixIcon: Icon(Icons.sms),
@@ -336,13 +369,22 @@ class _LoginPageState extends ConsumerState<LoginPage>
                   : const Text('验证码登录'),
             ),
           ),
+          if (authState.hasError)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Text(
+                authState.error.toString(),
+                style: TextStyle(color: theme.colorScheme.error),
+                textAlign: TextAlign.center,
+              ),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildQRCodeTab(ThemeData theme) {
-    if (_qrImageUrl == null && !_qrLoading) {
+    if (_qrImageUrl == null && !_qrLoading && !_isPolling) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadQRCode());
     }
     return Center(
@@ -390,7 +432,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
         children: [
           const SizedBox(height: 20),
           TextField(
-            controller: _usernameController,
+            controller: _webUsernameController,
             decoration: const InputDecoration(
               labelText: '手机号',
               prefixIcon: Icon(Icons.phone_android),
@@ -400,7 +442,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
           ),
           const SizedBox(height: 16),
           TextField(
-            controller: _passwordController,
+            controller: _webPasswordController,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
               labelText: '密码',
@@ -438,6 +480,15 @@ class _LoginPageState extends ConsumerState<LoginPage>
                   : const Text('Web登录'),
             ),
           ),
+          if (authState.hasError)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Text(
+                authState.error.toString(),
+                style: TextStyle(color: theme.colorScheme.error),
+                textAlign: TextAlign.center,
+              ),
+            ),
         ],
       ),
     );

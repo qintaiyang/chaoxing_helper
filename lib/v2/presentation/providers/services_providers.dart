@@ -27,7 +27,9 @@ NotificationService notificationService(NotificationServiceRef ref) {
 @Riverpod(keepAlive: true)
 PushDispatcher pushDispatcher(PushDispatcherRef ref) {
   final key = ref.watch(navigatorKeyProvider);
-  return PushDispatcher(navigatorKey: key);
+  final dispatcher = PushDispatcher(navigatorKey: key);
+  dispatcher.navigatorKey = key;
+  return dispatcher;
 }
 
 @Riverpod(keepAlive: true)

@@ -25,6 +25,9 @@ mixin _$Failure {
     required TResult Function(String message, String? code) business,
     required TResult Function(String message) storage,
     required TResult Function(String message, Object? error) unknown,
+    required TResult Function(String message) imageProcessing,
+    required TResult Function(String message) iconSwitchFailed,
+    required TResult Function(String message) splashUpdateFailed,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
@@ -33,6 +36,9 @@ mixin _$Failure {
     TResult? Function(String message, String? code)? business,
     TResult? Function(String message)? storage,
     TResult? Function(String message, Object? error)? unknown,
+    TResult? Function(String message)? imageProcessing,
+    TResult? Function(String message)? iconSwitchFailed,
+    TResult? Function(String message)? splashUpdateFailed,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
@@ -41,6 +47,9 @@ mixin _$Failure {
     TResult Function(String message, String? code)? business,
     TResult Function(String message)? storage,
     TResult Function(String message, Object? error)? unknown,
+    TResult Function(String message)? imageProcessing,
+    TResult Function(String message)? iconSwitchFailed,
+    TResult Function(String message)? splashUpdateFailed,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -50,6 +59,9 @@ mixin _$Failure {
     required TResult Function(BusinessFailure value) business,
     required TResult Function(StorageFailure value) storage,
     required TResult Function(UnknownFailure value) unknown,
+    required TResult Function(ImageProcessingFailure value) imageProcessing,
+    required TResult Function(IconSwitchFailed value) iconSwitchFailed,
+    required TResult Function(SplashUpdateFailed value) splashUpdateFailed,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
@@ -58,6 +70,9 @@ mixin _$Failure {
     TResult? Function(BusinessFailure value)? business,
     TResult? Function(StorageFailure value)? storage,
     TResult? Function(UnknownFailure value)? unknown,
+    TResult? Function(ImageProcessingFailure value)? imageProcessing,
+    TResult? Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult? Function(SplashUpdateFailed value)? splashUpdateFailed,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
@@ -66,6 +81,9 @@ mixin _$Failure {
     TResult Function(BusinessFailure value)? business,
     TResult Function(StorageFailure value)? storage,
     TResult Function(UnknownFailure value)? unknown,
+    TResult Function(ImageProcessingFailure value)? imageProcessing,
+    TResult Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult Function(SplashUpdateFailed value)? splashUpdateFailed,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
 
@@ -198,6 +216,9 @@ class _$NetworkFailureImpl implements NetworkFailure {
     required TResult Function(String message, String? code) business,
     required TResult Function(String message) storage,
     required TResult Function(String message, Object? error) unknown,
+    required TResult Function(String message) imageProcessing,
+    required TResult Function(String message) iconSwitchFailed,
+    required TResult Function(String message) splashUpdateFailed,
   }) {
     return network(message, statusCode);
   }
@@ -210,6 +231,9 @@ class _$NetworkFailureImpl implements NetworkFailure {
     TResult? Function(String message, String? code)? business,
     TResult? Function(String message)? storage,
     TResult? Function(String message, Object? error)? unknown,
+    TResult? Function(String message)? imageProcessing,
+    TResult? Function(String message)? iconSwitchFailed,
+    TResult? Function(String message)? splashUpdateFailed,
   }) {
     return network?.call(message, statusCode);
   }
@@ -222,6 +246,9 @@ class _$NetworkFailureImpl implements NetworkFailure {
     TResult Function(String message, String? code)? business,
     TResult Function(String message)? storage,
     TResult Function(String message, Object? error)? unknown,
+    TResult Function(String message)? imageProcessing,
+    TResult Function(String message)? iconSwitchFailed,
+    TResult Function(String message)? splashUpdateFailed,
     required TResult orElse(),
   }) {
     if (network != null) {
@@ -238,6 +265,9 @@ class _$NetworkFailureImpl implements NetworkFailure {
     required TResult Function(BusinessFailure value) business,
     required TResult Function(StorageFailure value) storage,
     required TResult Function(UnknownFailure value) unknown,
+    required TResult Function(ImageProcessingFailure value) imageProcessing,
+    required TResult Function(IconSwitchFailed value) iconSwitchFailed,
+    required TResult Function(SplashUpdateFailed value) splashUpdateFailed,
   }) {
     return network(this);
   }
@@ -250,6 +280,9 @@ class _$NetworkFailureImpl implements NetworkFailure {
     TResult? Function(BusinessFailure value)? business,
     TResult? Function(StorageFailure value)? storage,
     TResult? Function(UnknownFailure value)? unknown,
+    TResult? Function(ImageProcessingFailure value)? imageProcessing,
+    TResult? Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult? Function(SplashUpdateFailed value)? splashUpdateFailed,
   }) {
     return network?.call(this);
   }
@@ -262,6 +295,9 @@ class _$NetworkFailureImpl implements NetworkFailure {
     TResult Function(BusinessFailure value)? business,
     TResult Function(StorageFailure value)? storage,
     TResult Function(UnknownFailure value)? unknown,
+    TResult Function(ImageProcessingFailure value)? imageProcessing,
+    TResult Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult Function(SplashUpdateFailed value)? splashUpdateFailed,
     required TResult orElse(),
   }) {
     if (network != null) {
@@ -366,6 +402,9 @@ class _$AuthFailureImpl implements AuthFailure {
     required TResult Function(String message, String? code) business,
     required TResult Function(String message) storage,
     required TResult Function(String message, Object? error) unknown,
+    required TResult Function(String message) imageProcessing,
+    required TResult Function(String message) iconSwitchFailed,
+    required TResult Function(String message) splashUpdateFailed,
   }) {
     return auth(message);
   }
@@ -378,6 +417,9 @@ class _$AuthFailureImpl implements AuthFailure {
     TResult? Function(String message, String? code)? business,
     TResult? Function(String message)? storage,
     TResult? Function(String message, Object? error)? unknown,
+    TResult? Function(String message)? imageProcessing,
+    TResult? Function(String message)? iconSwitchFailed,
+    TResult? Function(String message)? splashUpdateFailed,
   }) {
     return auth?.call(message);
   }
@@ -390,6 +432,9 @@ class _$AuthFailureImpl implements AuthFailure {
     TResult Function(String message, String? code)? business,
     TResult Function(String message)? storage,
     TResult Function(String message, Object? error)? unknown,
+    TResult Function(String message)? imageProcessing,
+    TResult Function(String message)? iconSwitchFailed,
+    TResult Function(String message)? splashUpdateFailed,
     required TResult orElse(),
   }) {
     if (auth != null) {
@@ -406,6 +451,9 @@ class _$AuthFailureImpl implements AuthFailure {
     required TResult Function(BusinessFailure value) business,
     required TResult Function(StorageFailure value) storage,
     required TResult Function(UnknownFailure value) unknown,
+    required TResult Function(ImageProcessingFailure value) imageProcessing,
+    required TResult Function(IconSwitchFailed value) iconSwitchFailed,
+    required TResult Function(SplashUpdateFailed value) splashUpdateFailed,
   }) {
     return auth(this);
   }
@@ -418,6 +466,9 @@ class _$AuthFailureImpl implements AuthFailure {
     TResult? Function(BusinessFailure value)? business,
     TResult? Function(StorageFailure value)? storage,
     TResult? Function(UnknownFailure value)? unknown,
+    TResult? Function(ImageProcessingFailure value)? imageProcessing,
+    TResult? Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult? Function(SplashUpdateFailed value)? splashUpdateFailed,
   }) {
     return auth?.call(this);
   }
@@ -430,6 +481,9 @@ class _$AuthFailureImpl implements AuthFailure {
     TResult Function(BusinessFailure value)? business,
     TResult Function(StorageFailure value)? storage,
     TResult Function(UnknownFailure value)? unknown,
+    TResult Function(ImageProcessingFailure value)? imageProcessing,
+    TResult Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult Function(SplashUpdateFailed value)? splashUpdateFailed,
     required TResult orElse(),
   }) {
     if (auth != null) {
@@ -541,6 +595,9 @@ class _$BusinessFailureImpl implements BusinessFailure {
     required TResult Function(String message, String? code) business,
     required TResult Function(String message) storage,
     required TResult Function(String message, Object? error) unknown,
+    required TResult Function(String message) imageProcessing,
+    required TResult Function(String message) iconSwitchFailed,
+    required TResult Function(String message) splashUpdateFailed,
   }) {
     return business(message, code);
   }
@@ -553,6 +610,9 @@ class _$BusinessFailureImpl implements BusinessFailure {
     TResult? Function(String message, String? code)? business,
     TResult? Function(String message)? storage,
     TResult? Function(String message, Object? error)? unknown,
+    TResult? Function(String message)? imageProcessing,
+    TResult? Function(String message)? iconSwitchFailed,
+    TResult? Function(String message)? splashUpdateFailed,
   }) {
     return business?.call(message, code);
   }
@@ -565,6 +625,9 @@ class _$BusinessFailureImpl implements BusinessFailure {
     TResult Function(String message, String? code)? business,
     TResult Function(String message)? storage,
     TResult Function(String message, Object? error)? unknown,
+    TResult Function(String message)? imageProcessing,
+    TResult Function(String message)? iconSwitchFailed,
+    TResult Function(String message)? splashUpdateFailed,
     required TResult orElse(),
   }) {
     if (business != null) {
@@ -581,6 +644,9 @@ class _$BusinessFailureImpl implements BusinessFailure {
     required TResult Function(BusinessFailure value) business,
     required TResult Function(StorageFailure value) storage,
     required TResult Function(UnknownFailure value) unknown,
+    required TResult Function(ImageProcessingFailure value) imageProcessing,
+    required TResult Function(IconSwitchFailed value) iconSwitchFailed,
+    required TResult Function(SplashUpdateFailed value) splashUpdateFailed,
   }) {
     return business(this);
   }
@@ -593,6 +659,9 @@ class _$BusinessFailureImpl implements BusinessFailure {
     TResult? Function(BusinessFailure value)? business,
     TResult? Function(StorageFailure value)? storage,
     TResult? Function(UnknownFailure value)? unknown,
+    TResult? Function(ImageProcessingFailure value)? imageProcessing,
+    TResult? Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult? Function(SplashUpdateFailed value)? splashUpdateFailed,
   }) {
     return business?.call(this);
   }
@@ -605,6 +674,9 @@ class _$BusinessFailureImpl implements BusinessFailure {
     TResult Function(BusinessFailure value)? business,
     TResult Function(StorageFailure value)? storage,
     TResult Function(UnknownFailure value)? unknown,
+    TResult Function(ImageProcessingFailure value)? imageProcessing,
+    TResult Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult Function(SplashUpdateFailed value)? splashUpdateFailed,
     required TResult orElse(),
   }) {
     if (business != null) {
@@ -712,6 +784,9 @@ class _$StorageFailureImpl implements StorageFailure {
     required TResult Function(String message, String? code) business,
     required TResult Function(String message) storage,
     required TResult Function(String message, Object? error) unknown,
+    required TResult Function(String message) imageProcessing,
+    required TResult Function(String message) iconSwitchFailed,
+    required TResult Function(String message) splashUpdateFailed,
   }) {
     return storage(message);
   }
@@ -724,6 +799,9 @@ class _$StorageFailureImpl implements StorageFailure {
     TResult? Function(String message, String? code)? business,
     TResult? Function(String message)? storage,
     TResult? Function(String message, Object? error)? unknown,
+    TResult? Function(String message)? imageProcessing,
+    TResult? Function(String message)? iconSwitchFailed,
+    TResult? Function(String message)? splashUpdateFailed,
   }) {
     return storage?.call(message);
   }
@@ -736,6 +814,9 @@ class _$StorageFailureImpl implements StorageFailure {
     TResult Function(String message, String? code)? business,
     TResult Function(String message)? storage,
     TResult Function(String message, Object? error)? unknown,
+    TResult Function(String message)? imageProcessing,
+    TResult Function(String message)? iconSwitchFailed,
+    TResult Function(String message)? splashUpdateFailed,
     required TResult orElse(),
   }) {
     if (storage != null) {
@@ -752,6 +833,9 @@ class _$StorageFailureImpl implements StorageFailure {
     required TResult Function(BusinessFailure value) business,
     required TResult Function(StorageFailure value) storage,
     required TResult Function(UnknownFailure value) unknown,
+    required TResult Function(ImageProcessingFailure value) imageProcessing,
+    required TResult Function(IconSwitchFailed value) iconSwitchFailed,
+    required TResult Function(SplashUpdateFailed value) splashUpdateFailed,
   }) {
     return storage(this);
   }
@@ -764,6 +848,9 @@ class _$StorageFailureImpl implements StorageFailure {
     TResult? Function(BusinessFailure value)? business,
     TResult? Function(StorageFailure value)? storage,
     TResult? Function(UnknownFailure value)? unknown,
+    TResult? Function(ImageProcessingFailure value)? imageProcessing,
+    TResult? Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult? Function(SplashUpdateFailed value)? splashUpdateFailed,
   }) {
     return storage?.call(this);
   }
@@ -776,6 +863,9 @@ class _$StorageFailureImpl implements StorageFailure {
     TResult Function(BusinessFailure value)? business,
     TResult Function(StorageFailure value)? storage,
     TResult Function(UnknownFailure value)? unknown,
+    TResult Function(ImageProcessingFailure value)? imageProcessing,
+    TResult Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult Function(SplashUpdateFailed value)? splashUpdateFailed,
     required TResult orElse(),
   }) {
     if (storage != null) {
@@ -888,6 +978,9 @@ class _$UnknownFailureImpl implements UnknownFailure {
     required TResult Function(String message, String? code) business,
     required TResult Function(String message) storage,
     required TResult Function(String message, Object? error) unknown,
+    required TResult Function(String message) imageProcessing,
+    required TResult Function(String message) iconSwitchFailed,
+    required TResult Function(String message) splashUpdateFailed,
   }) {
     return unknown(message, error);
   }
@@ -900,6 +993,9 @@ class _$UnknownFailureImpl implements UnknownFailure {
     TResult? Function(String message, String? code)? business,
     TResult? Function(String message)? storage,
     TResult? Function(String message, Object? error)? unknown,
+    TResult? Function(String message)? imageProcessing,
+    TResult? Function(String message)? iconSwitchFailed,
+    TResult? Function(String message)? splashUpdateFailed,
   }) {
     return unknown?.call(message, error);
   }
@@ -912,6 +1008,9 @@ class _$UnknownFailureImpl implements UnknownFailure {
     TResult Function(String message, String? code)? business,
     TResult Function(String message)? storage,
     TResult Function(String message, Object? error)? unknown,
+    TResult Function(String message)? imageProcessing,
+    TResult Function(String message)? iconSwitchFailed,
+    TResult Function(String message)? splashUpdateFailed,
     required TResult orElse(),
   }) {
     if (unknown != null) {
@@ -928,6 +1027,9 @@ class _$UnknownFailureImpl implements UnknownFailure {
     required TResult Function(BusinessFailure value) business,
     required TResult Function(StorageFailure value) storage,
     required TResult Function(UnknownFailure value) unknown,
+    required TResult Function(ImageProcessingFailure value) imageProcessing,
+    required TResult Function(IconSwitchFailed value) iconSwitchFailed,
+    required TResult Function(SplashUpdateFailed value) splashUpdateFailed,
   }) {
     return unknown(this);
   }
@@ -940,6 +1042,9 @@ class _$UnknownFailureImpl implements UnknownFailure {
     TResult? Function(BusinessFailure value)? business,
     TResult? Function(StorageFailure value)? storage,
     TResult? Function(UnknownFailure value)? unknown,
+    TResult? Function(ImageProcessingFailure value)? imageProcessing,
+    TResult? Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult? Function(SplashUpdateFailed value)? splashUpdateFailed,
   }) {
     return unknown?.call(this);
   }
@@ -952,6 +1057,9 @@ class _$UnknownFailureImpl implements UnknownFailure {
     TResult Function(BusinessFailure value)? business,
     TResult Function(StorageFailure value)? storage,
     TResult Function(UnknownFailure value)? unknown,
+    TResult Function(ImageProcessingFailure value)? imageProcessing,
+    TResult Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult Function(SplashUpdateFailed value)? splashUpdateFailed,
     required TResult orElse(),
   }) {
     if (unknown != null) {
@@ -976,5 +1084,564 @@ abstract class UnknownFailure implements Failure {
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$UnknownFailureImplCopyWith<_$UnknownFailureImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$ImageProcessingFailureImplCopyWith<$Res>
+    implements $FailureCopyWith<$Res> {
+  factory _$$ImageProcessingFailureImplCopyWith(
+    _$ImageProcessingFailureImpl value,
+    $Res Function(_$ImageProcessingFailureImpl) then,
+  ) = __$$ImageProcessingFailureImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String message});
+}
+
+/// @nodoc
+class __$$ImageProcessingFailureImplCopyWithImpl<$Res>
+    extends _$FailureCopyWithImpl<$Res, _$ImageProcessingFailureImpl>
+    implements _$$ImageProcessingFailureImplCopyWith<$Res> {
+  __$$ImageProcessingFailureImplCopyWithImpl(
+    _$ImageProcessingFailureImpl _value,
+    $Res Function(_$ImageProcessingFailureImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of Failure
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? message = null}) {
+    return _then(
+      _$ImageProcessingFailureImpl(
+        message: null == message
+            ? _value.message
+            : message // ignore: cast_nullable_to_non_nullable
+                  as String,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$ImageProcessingFailureImpl implements ImageProcessingFailure {
+  const _$ImageProcessingFailureImpl({required this.message});
+
+  @override
+  final String message;
+
+  @override
+  String toString() {
+    return 'Failure.imageProcessing(message: $message)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$ImageProcessingFailureImpl &&
+            (identical(other.message, message) || other.message == message));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, message);
+
+  /// Create a copy of Failure
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$ImageProcessingFailureImplCopyWith<_$ImageProcessingFailureImpl>
+  get copyWith =>
+      __$$ImageProcessingFailureImplCopyWithImpl<_$ImageProcessingFailureImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String message, int? statusCode) network,
+    required TResult Function(String message) auth,
+    required TResult Function(String message, String? code) business,
+    required TResult Function(String message) storage,
+    required TResult Function(String message, Object? error) unknown,
+    required TResult Function(String message) imageProcessing,
+    required TResult Function(String message) iconSwitchFailed,
+    required TResult Function(String message) splashUpdateFailed,
+  }) {
+    return imageProcessing(message);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String message, int? statusCode)? network,
+    TResult? Function(String message)? auth,
+    TResult? Function(String message, String? code)? business,
+    TResult? Function(String message)? storage,
+    TResult? Function(String message, Object? error)? unknown,
+    TResult? Function(String message)? imageProcessing,
+    TResult? Function(String message)? iconSwitchFailed,
+    TResult? Function(String message)? splashUpdateFailed,
+  }) {
+    return imageProcessing?.call(message);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String message, int? statusCode)? network,
+    TResult Function(String message)? auth,
+    TResult Function(String message, String? code)? business,
+    TResult Function(String message)? storage,
+    TResult Function(String message, Object? error)? unknown,
+    TResult Function(String message)? imageProcessing,
+    TResult Function(String message)? iconSwitchFailed,
+    TResult Function(String message)? splashUpdateFailed,
+    required TResult orElse(),
+  }) {
+    if (imageProcessing != null) {
+      return imageProcessing(message);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(NetworkFailure value) network,
+    required TResult Function(AuthFailure value) auth,
+    required TResult Function(BusinessFailure value) business,
+    required TResult Function(StorageFailure value) storage,
+    required TResult Function(UnknownFailure value) unknown,
+    required TResult Function(ImageProcessingFailure value) imageProcessing,
+    required TResult Function(IconSwitchFailed value) iconSwitchFailed,
+    required TResult Function(SplashUpdateFailed value) splashUpdateFailed,
+  }) {
+    return imageProcessing(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(NetworkFailure value)? network,
+    TResult? Function(AuthFailure value)? auth,
+    TResult? Function(BusinessFailure value)? business,
+    TResult? Function(StorageFailure value)? storage,
+    TResult? Function(UnknownFailure value)? unknown,
+    TResult? Function(ImageProcessingFailure value)? imageProcessing,
+    TResult? Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult? Function(SplashUpdateFailed value)? splashUpdateFailed,
+  }) {
+    return imageProcessing?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(NetworkFailure value)? network,
+    TResult Function(AuthFailure value)? auth,
+    TResult Function(BusinessFailure value)? business,
+    TResult Function(StorageFailure value)? storage,
+    TResult Function(UnknownFailure value)? unknown,
+    TResult Function(ImageProcessingFailure value)? imageProcessing,
+    TResult Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult Function(SplashUpdateFailed value)? splashUpdateFailed,
+    required TResult orElse(),
+  }) {
+    if (imageProcessing != null) {
+      return imageProcessing(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class ImageProcessingFailure implements Failure {
+  const factory ImageProcessingFailure({required final String message}) =
+      _$ImageProcessingFailureImpl;
+
+  @override
+  String get message;
+
+  /// Create a copy of Failure
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$ImageProcessingFailureImplCopyWith<_$ImageProcessingFailureImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$IconSwitchFailedImplCopyWith<$Res>
+    implements $FailureCopyWith<$Res> {
+  factory _$$IconSwitchFailedImplCopyWith(
+    _$IconSwitchFailedImpl value,
+    $Res Function(_$IconSwitchFailedImpl) then,
+  ) = __$$IconSwitchFailedImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String message});
+}
+
+/// @nodoc
+class __$$IconSwitchFailedImplCopyWithImpl<$Res>
+    extends _$FailureCopyWithImpl<$Res, _$IconSwitchFailedImpl>
+    implements _$$IconSwitchFailedImplCopyWith<$Res> {
+  __$$IconSwitchFailedImplCopyWithImpl(
+    _$IconSwitchFailedImpl _value,
+    $Res Function(_$IconSwitchFailedImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of Failure
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? message = null}) {
+    return _then(
+      _$IconSwitchFailedImpl(
+        message: null == message
+            ? _value.message
+            : message // ignore: cast_nullable_to_non_nullable
+                  as String,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$IconSwitchFailedImpl implements IconSwitchFailed {
+  const _$IconSwitchFailedImpl({required this.message});
+
+  @override
+  final String message;
+
+  @override
+  String toString() {
+    return 'Failure.iconSwitchFailed(message: $message)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$IconSwitchFailedImpl &&
+            (identical(other.message, message) || other.message == message));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, message);
+
+  /// Create a copy of Failure
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$IconSwitchFailedImplCopyWith<_$IconSwitchFailedImpl> get copyWith =>
+      __$$IconSwitchFailedImplCopyWithImpl<_$IconSwitchFailedImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String message, int? statusCode) network,
+    required TResult Function(String message) auth,
+    required TResult Function(String message, String? code) business,
+    required TResult Function(String message) storage,
+    required TResult Function(String message, Object? error) unknown,
+    required TResult Function(String message) imageProcessing,
+    required TResult Function(String message) iconSwitchFailed,
+    required TResult Function(String message) splashUpdateFailed,
+  }) {
+    return iconSwitchFailed(message);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String message, int? statusCode)? network,
+    TResult? Function(String message)? auth,
+    TResult? Function(String message, String? code)? business,
+    TResult? Function(String message)? storage,
+    TResult? Function(String message, Object? error)? unknown,
+    TResult? Function(String message)? imageProcessing,
+    TResult? Function(String message)? iconSwitchFailed,
+    TResult? Function(String message)? splashUpdateFailed,
+  }) {
+    return iconSwitchFailed?.call(message);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String message, int? statusCode)? network,
+    TResult Function(String message)? auth,
+    TResult Function(String message, String? code)? business,
+    TResult Function(String message)? storage,
+    TResult Function(String message, Object? error)? unknown,
+    TResult Function(String message)? imageProcessing,
+    TResult Function(String message)? iconSwitchFailed,
+    TResult Function(String message)? splashUpdateFailed,
+    required TResult orElse(),
+  }) {
+    if (iconSwitchFailed != null) {
+      return iconSwitchFailed(message);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(NetworkFailure value) network,
+    required TResult Function(AuthFailure value) auth,
+    required TResult Function(BusinessFailure value) business,
+    required TResult Function(StorageFailure value) storage,
+    required TResult Function(UnknownFailure value) unknown,
+    required TResult Function(ImageProcessingFailure value) imageProcessing,
+    required TResult Function(IconSwitchFailed value) iconSwitchFailed,
+    required TResult Function(SplashUpdateFailed value) splashUpdateFailed,
+  }) {
+    return iconSwitchFailed(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(NetworkFailure value)? network,
+    TResult? Function(AuthFailure value)? auth,
+    TResult? Function(BusinessFailure value)? business,
+    TResult? Function(StorageFailure value)? storage,
+    TResult? Function(UnknownFailure value)? unknown,
+    TResult? Function(ImageProcessingFailure value)? imageProcessing,
+    TResult? Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult? Function(SplashUpdateFailed value)? splashUpdateFailed,
+  }) {
+    return iconSwitchFailed?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(NetworkFailure value)? network,
+    TResult Function(AuthFailure value)? auth,
+    TResult Function(BusinessFailure value)? business,
+    TResult Function(StorageFailure value)? storage,
+    TResult Function(UnknownFailure value)? unknown,
+    TResult Function(ImageProcessingFailure value)? imageProcessing,
+    TResult Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult Function(SplashUpdateFailed value)? splashUpdateFailed,
+    required TResult orElse(),
+  }) {
+    if (iconSwitchFailed != null) {
+      return iconSwitchFailed(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class IconSwitchFailed implements Failure {
+  const factory IconSwitchFailed({required final String message}) =
+      _$IconSwitchFailedImpl;
+
+  @override
+  String get message;
+
+  /// Create a copy of Failure
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$IconSwitchFailedImplCopyWith<_$IconSwitchFailedImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$SplashUpdateFailedImplCopyWith<$Res>
+    implements $FailureCopyWith<$Res> {
+  factory _$$SplashUpdateFailedImplCopyWith(
+    _$SplashUpdateFailedImpl value,
+    $Res Function(_$SplashUpdateFailedImpl) then,
+  ) = __$$SplashUpdateFailedImplCopyWithImpl<$Res>;
+  @override
+  @useResult
+  $Res call({String message});
+}
+
+/// @nodoc
+class __$$SplashUpdateFailedImplCopyWithImpl<$Res>
+    extends _$FailureCopyWithImpl<$Res, _$SplashUpdateFailedImpl>
+    implements _$$SplashUpdateFailedImplCopyWith<$Res> {
+  __$$SplashUpdateFailedImplCopyWithImpl(
+    _$SplashUpdateFailedImpl _value,
+    $Res Function(_$SplashUpdateFailedImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of Failure
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? message = null}) {
+    return _then(
+      _$SplashUpdateFailedImpl(
+        message: null == message
+            ? _value.message
+            : message // ignore: cast_nullable_to_non_nullable
+                  as String,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$SplashUpdateFailedImpl implements SplashUpdateFailed {
+  const _$SplashUpdateFailedImpl({required this.message});
+
+  @override
+  final String message;
+
+  @override
+  String toString() {
+    return 'Failure.splashUpdateFailed(message: $message)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$SplashUpdateFailedImpl &&
+            (identical(other.message, message) || other.message == message));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, message);
+
+  /// Create a copy of Failure
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$SplashUpdateFailedImplCopyWith<_$SplashUpdateFailedImpl> get copyWith =>
+      __$$SplashUpdateFailedImplCopyWithImpl<_$SplashUpdateFailedImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(String message, int? statusCode) network,
+    required TResult Function(String message) auth,
+    required TResult Function(String message, String? code) business,
+    required TResult Function(String message) storage,
+    required TResult Function(String message, Object? error) unknown,
+    required TResult Function(String message) imageProcessing,
+    required TResult Function(String message) iconSwitchFailed,
+    required TResult Function(String message) splashUpdateFailed,
+  }) {
+    return splashUpdateFailed(message);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(String message, int? statusCode)? network,
+    TResult? Function(String message)? auth,
+    TResult? Function(String message, String? code)? business,
+    TResult? Function(String message)? storage,
+    TResult? Function(String message, Object? error)? unknown,
+    TResult? Function(String message)? imageProcessing,
+    TResult? Function(String message)? iconSwitchFailed,
+    TResult? Function(String message)? splashUpdateFailed,
+  }) {
+    return splashUpdateFailed?.call(message);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(String message, int? statusCode)? network,
+    TResult Function(String message)? auth,
+    TResult Function(String message, String? code)? business,
+    TResult Function(String message)? storage,
+    TResult Function(String message, Object? error)? unknown,
+    TResult Function(String message)? imageProcessing,
+    TResult Function(String message)? iconSwitchFailed,
+    TResult Function(String message)? splashUpdateFailed,
+    required TResult orElse(),
+  }) {
+    if (splashUpdateFailed != null) {
+      return splashUpdateFailed(message);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(NetworkFailure value) network,
+    required TResult Function(AuthFailure value) auth,
+    required TResult Function(BusinessFailure value) business,
+    required TResult Function(StorageFailure value) storage,
+    required TResult Function(UnknownFailure value) unknown,
+    required TResult Function(ImageProcessingFailure value) imageProcessing,
+    required TResult Function(IconSwitchFailed value) iconSwitchFailed,
+    required TResult Function(SplashUpdateFailed value) splashUpdateFailed,
+  }) {
+    return splashUpdateFailed(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(NetworkFailure value)? network,
+    TResult? Function(AuthFailure value)? auth,
+    TResult? Function(BusinessFailure value)? business,
+    TResult? Function(StorageFailure value)? storage,
+    TResult? Function(UnknownFailure value)? unknown,
+    TResult? Function(ImageProcessingFailure value)? imageProcessing,
+    TResult? Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult? Function(SplashUpdateFailed value)? splashUpdateFailed,
+  }) {
+    return splashUpdateFailed?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(NetworkFailure value)? network,
+    TResult Function(AuthFailure value)? auth,
+    TResult Function(BusinessFailure value)? business,
+    TResult Function(StorageFailure value)? storage,
+    TResult Function(UnknownFailure value)? unknown,
+    TResult Function(ImageProcessingFailure value)? imageProcessing,
+    TResult Function(IconSwitchFailed value)? iconSwitchFailed,
+    TResult Function(SplashUpdateFailed value)? splashUpdateFailed,
+    required TResult orElse(),
+  }) {
+    if (splashUpdateFailed != null) {
+      return splashUpdateFailed(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class SplashUpdateFailed implements Failure {
+  const factory SplashUpdateFailed({required final String message}) =
+      _$SplashUpdateFailedImpl;
+
+  @override
+  String get message;
+
+  /// Create a copy of Failure
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$SplashUpdateFailedImplCopyWith<_$SplashUpdateFailedImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

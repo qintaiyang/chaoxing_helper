@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:im_flutter_sdk/im_flutter_sdk.dart';
-import '../../domain/entities/push_notification.dart';
+import '../../domain/entities/notification.dart';
 import 'notification_service.dart';
 import 'push_dispatcher.dart';
 import 'dnd_service.dart';
@@ -353,9 +353,14 @@ class ImService {
         '[ImNotify] 通知判断: isMe=$isMe, isForeground=$_isAppInForeground, groupId=$convId',
       );
       if (!isMe && !_isAppInForeground) {
-        if (DndService().isDnd(convId)) {
+        final isDnd = DndService().isDnd(convId);
+        debugPrint(
+          '[ImNotify] DndService().isDnd($convId) = $isDnd, dndGroupsCount=${DndService().getDndGroups().length}',
+        );
+        if (isDnd) {
           debugPrint('[ImNotify] 免打扰模式，跳过通知: groupId=$convId');
         } else {
+          debugPrint('[ImNotify] 准备发送后台通知: $convId');
           _showNotificationWithBestName(convId, senderId, text, message);
         }
       } else if (isMe) {
@@ -512,9 +517,7 @@ class ImService {
 
   void _startKeepAliveCheck() {
     _stopKeepAliveTimer();
-    _keepAliveTimer = Timer.periodic(const Duration(seconds: 30), (
-      timer,
-    ) async {
+    _keepAliveTimer = Timer.periodic(const Duration(minutes: 5), (timer) async {
       try {
         final isConnected = await EMClient.getInstance.isConnected();
         debugPrint(

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../../../../infra/network/dio_client.dart';
@@ -175,6 +176,46 @@ class CXAuthApi {
     }
   }
 
+  Future<Map<String, dynamic>?> loginAPP(
+    String username,
+    String password, {
+    String loginType = '1',
+  }) async {
+    try {
+      const url =
+          'https://passport2-api.chaoxing.com/v11/loginregister?cx_xxt_passport=json';
+
+      final loginData = {'uname': username, 'code': password};
+      final loginInfo = _encryption.aesEcbEncrypt(
+        json.encode(loginData),
+        CryptoConfig.production.appLoginKey,
+      );
+
+      final formData = {
+        'logininfo': loginInfo,
+        'loginType': loginType,
+        'roleSelect': 'true',
+        'entype': '1',
+      };
+      if (loginType == '2') {
+        formData['countrycode'] = '86';
+      }
+
+      _interceptor.isLoggingIn.value = true;
+      final response = await _client.sendRequest(
+        url,
+        method: 'POST',
+        body: formData,
+      );
+      return response.data;
+    } catch (e) {
+      debugPrint('APP登录异常: $e');
+      return null;
+    } finally {
+      _interceptor.isLoggingIn.value = false;
+    }
+  }
+
   Future<Map<String, dynamic>?> checkQRAuthStatus(
     String uuid,
     String enc,
@@ -205,6 +246,7 @@ class CXAuthApi {
 
   /// 授权网页端 QR 登录 (APP扫码后调用此接口完成授权)
   /// 逆向依据: chaoxing.har (官方学习通APP RealReqable抓包)
+  /// 注意：此流程不使用 isLoggingIn，需要利用当前已登录用户的 Cookie 来完成授权
   Future<Map<String, dynamic>?> authorizeWebQR(String uuid, String enc) async {
     try {
       debugPrint('🌐 V2 网页QR授权 - Step 1: 访问passport登录页刷新session...');
@@ -240,6 +282,7 @@ class CXAuthApi {
 
       if (response.data != null && response.data['status'] == true) {
         debugPrint('✅ V2 网页QR授权成功');
+        await Future.delayed(const Duration(milliseconds: 300));
         return {'status': true, 'mes': '验证通过'};
       }
 

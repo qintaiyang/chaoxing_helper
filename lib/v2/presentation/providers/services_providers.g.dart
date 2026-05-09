@@ -58,7 +58,7 @@ final notificationServiceProvider = Provider<NotificationService>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef NotificationServiceRef = ProviderRef<NotificationService>;
-String _$pushDispatcherHash() => r'0316598b7980f4ab638c1b2edfbd14a24d4bce42';
+String _$pushDispatcherHash() => r'8ae50e5569f9ef3504485987071425eb5044e4b9';
 
 /// See also [pushDispatcher].
 @ProviderFor(pushDispatcher)

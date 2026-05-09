@@ -124,7 +124,7 @@ class SignInRepositoryImpl implements SignInRepository {
 
   @override
   Future<Either<Failure, SignIn>> qrCodeSignIn({
-    required String courseId,
+    String? courseId,
     required String activeId,
     required String enc,
     required String uid,
@@ -152,7 +152,7 @@ class SignInRepositoryImpl implements SignInRepository {
       );
       if (result != null) {
         return Right(
-          SignInMapper.toEntity(result, courseId: courseId, activeId: activeId),
+          SignInMapper.toEntity(result, courseId: courseId ?? '', activeId: activeId),
         );
       }
       return const Left(Failure.business(message: '二维码签到失败'));

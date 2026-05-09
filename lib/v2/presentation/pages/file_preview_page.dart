@@ -1,7 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:photo_view/photo_view.dart';
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
+
+import '../../app_dependencies.dart';
 import '../../data/datasources/remote/chaoxing/cx_pan_api.dart';
 
 class FilePreviewPage extends StatefulWidget {
@@ -23,7 +30,7 @@ class FilePreviewPage extends StatefulWidget {
 }
 
 class _FilePreviewPageState extends State<FilePreviewPage> {
-  late final WebViewController _controller;
+  WebViewController? _controller;
   bool _isLoading = true;
   bool _hasError = false;
   String _errorMessage = '';
@@ -31,12 +38,35 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
   String? _imageUrl;
   bool _loadingImageUrl = true;
 
+  late final CXPanApi _panApi;
+
   static const _browserUa =
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
+
+  static const _allHosts = [
+    '.chaoxing.com',
+    'www.chaoxing.com',
+    'passport2.chaoxing.com',
+    'mooc1.chaoxing.com',
+    'mooc1-1.chaoxing.com',
+    'mooc1-api.chaoxing.com',
+    'mooc2-ans.chaoxing.com',
+    'i.chaoxing.com',
+    'learn.chaoxing.com',
+    'photo.chaoxing.com',
+    'im.chaoxing.com',
+    'sso.chaoxing.com',
+    'passport2-api.chaoxing.com',
+    'mobilelearn.chaoxing.com',
+    '.cldisk.com',
+    'pan-yz.cldisk.com',
+    's2.cldisk.com',
+  ];
 
   @override
   void initState() {
     super.initState();
+    _panApi = AppDependencies.instance.cxPanApi;
     if (widget.isImage) {
       _loadImageUrl();
     } else {
@@ -46,7 +76,7 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
 
   Future<void> _loadImageUrl() async {
     try {
-      final url = await CXPanApi.getImagePreviewUrl(resid: widget.resid);
+      final url = await _panApi.getImagePreviewUrl(resid: widget.resid);
       if (mounted) {
         setState(() {
           _imageUrl = url;
@@ -66,25 +96,68 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
   }
 
   Future<void> _initWebView() async {
-    _controller = WebViewController()
+    if (Platform.isAndroid) {
+      try {
+        final platform = MethodChannel('com.chaoxinghelper/webview');
+        await platform.invokeMethod('enableMixedContent');
+        debugPrint('Android 混合内容模式已启用');
+      } catch (e) {
+        debugPrint('启用混合内容模式失败: $e');
+      }
+    }
+
+    late final PlatformWebViewControllerCreationParams params;
+    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+      params = WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
+      );
+    } else {
+      params = const PlatformWebViewControllerCreationParams();
+    }
+
+    final controller = WebViewController.fromPlatformCreationParams(params)
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent(_browserUa)
-      ..setNavigationDelegate(NavigationDelegate(
+      ..setUserAgent(_browserUa);
+
+    if (controller.platform is AndroidWebViewController) {
+      AndroidWebViewController.enableDebugging(true);
+      (controller.platform as AndroidWebViewController)
+          .setMediaPlaybackRequiresUserGesture(false);
+    }
+
+    _controller = controller;
+
+    _controller!.setNavigationDelegate(
+      NavigationDelegate(
         onPageStarted: (url) {
           debugPrint('预览WebView开始加载: $url');
-          if (mounted) setState(() => _isLoading = true);
+          if (mounted) {
+            setState(() {
+              _isLoading = true;
+              _hasError = false;
+            });
+          }
         },
         onPageFinished: (url) async {
           debugPrint('预览WebView加载完成: $url');
+          await _injectViewport();
+          await _injectCookiesViaJs();
+          await _injectChaoxingMobileStyles();
           if (mounted) setState(() => _isLoading = false);
         },
         onWebResourceError: (error) {
-          debugPrint('预览WebView资源错误: ${error.description}');
+          debugPrint(
+            '预览WebView资源错误: ${error.description} (${error.errorCode}), url=${error.url}',
+          );
+          if (error.errorCode == -1 && mounted) {
+            return;
+          }
           if (mounted) {
             setState(() {
               _isLoading = false;
               _hasError = true;
-              _errorMessage = error.description;
+              _errorMessage = '${error.description} (${error.errorCode})';
             });
           }
         },
@@ -92,10 +165,17 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
           debugPrint('预览WebView导航请求: ${request.url}');
           return NavigationDecision.navigate;
         },
-      ));
+      ),
+    );
 
+    await _loadPage();
+  }
+
+  Future<void> _loadPage() async {
     try {
-      final previewUrl = await CXPanApi.getPreviewUrl(
+      await _setupNativeCookies();
+
+      final previewUrl = await _panApi.getPreviewUrl(
         resid: widget.resid,
         encryptedId: widget.encryptedId,
         isFavorite: false,
@@ -117,16 +197,204 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
         'User-Agent': _browserUa,
         'Referer': 'https://pan-yz.cldisk.com/pcuserpan/index',
       };
-      await _controller.loadRequest(Uri.parse(previewUrl), headers: headers);
+      await _controller!.loadRequest(Uri.parse(previewUrl), headers: headers);
     } catch (e) {
-      debugPrint('预览WebView初始化异常: $e');
+      debugPrint('预览WebView加载异常: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
           _hasError = true;
-          _errorMessage = '初始化失败: $e';
+          _errorMessage = '加载失败: $e';
         });
       }
+    }
+  }
+
+  Future<void> _setupNativeCookies() async {
+    try {
+      final sessionIdResult = AppDependencies.instance.accountRepo
+          .getCurrentSessionId();
+      final userId = sessionIdResult.fold(
+        (failure) {
+          debugPrint('获取Session ID失败: ${failure.message}');
+          return null;
+        },
+        (id) => id,
+      );
+
+      if (userId == null || userId.isEmpty) {
+        debugPrint('User ID为空，无法设置Cookie');
+        return;
+      }
+
+      final cookieJar = AppDependencies.instance.cookieManager
+          .getCurrentUserCookieJar(userId);
+      if (cookieJar == null) {
+        debugPrint('CookieJar为null，用户 $userId');
+        return;
+      }
+
+      final allCookies = <String, Cookie>{};
+
+      for (final host in _allHosts) {
+        try {
+          final uri = Uri.parse('https://$host');
+          final cookies = await cookieJar.loadForRequest(uri);
+          for (final c in cookies) {
+            final key = '${c.name}@${c.domain ?? host}';
+            allCookies.putIfAbsent(key, () => c);
+          }
+        } catch (e) {
+          debugPrint('加载 $host 的Cookie失败: $e');
+        }
+      }
+
+      await _setCookiesNative(allCookies.values.toList());
+      debugPrint('通过原生API注入了 ${allCookies.length} 个Cookie');
+    } catch (e) {
+      debugPrint('设置Cookie失败: $e');
+    }
+  }
+
+  Future<void> _setCookiesNative(List<Cookie> cookies) async {
+    final cookieManager = WebViewCookieManager();
+    for (final cookie in cookies) {
+      final path = cookie.path ?? '/';
+      try {
+        String domain = cookie.domain ?? '.chaoxing.com';
+        final cldiskDomains = [
+          '.cldisk.com',
+          'pan-yz.cldisk.com',
+          's2.cldisk.com',
+        ];
+        final isCldiskCookie = cldiskDomains.any(
+          (d) => domain.contains(d) || d.contains(domain),
+        );
+
+        final targetDomain = isCldiskCookie ? '.cldisk.com' : domain;
+        await cookieManager.setCookie(
+          WebViewCookie(
+            name: cookie.name,
+            value: cookie.value,
+            domain: targetDomain.startsWith('.') ? targetDomain : '.$targetDomain',
+            path: path,
+          ),
+        );
+      } catch (e) {
+        debugPrint('设置Cookie失败 ${cookie.name}: $e');
+      }
+    }
+  }
+
+  Future<void> _injectViewport() async {
+    if (_controller == null) return;
+    try {
+      await _controller!.runJavaScript('''
+(function() {
+  var viewport = document.querySelector('meta[name=viewport]');
+  if (viewport) {
+    viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+  } else {
+    viewport = document.createElement('meta');
+    viewport.name = 'viewport';
+    viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    document.head.appendChild(viewport);
+  }
+})();
+      ''');
+    } catch (e) {
+      debugPrint('Viewport注入失败: $e');
+    }
+  }
+
+  Future<void> _injectCookiesViaJs() async {
+    try {
+      final sessionIdResult = AppDependencies.instance.accountRepo
+          .getCurrentSessionId();
+      final userId = sessionIdResult.fold(
+        (failure) {
+          debugPrint('获取Session ID失败: ${failure.message}');
+          return null;
+        },
+        (id) => id,
+      );
+
+      if (userId == null || userId.isEmpty) {
+        debugPrint('User ID为空，无法注入Cookie');
+        return;
+      }
+
+      final cookieJar = AppDependencies.instance.cookieManager
+          .getCurrentUserCookieJar(userId);
+      if (cookieJar == null) {
+        debugPrint('CookieJar为null，用户 $userId');
+        return;
+      }
+
+      final allCookies = <String, Cookie>{};
+
+      for (final host in _allHosts) {
+        try {
+          final uri = Uri.parse('https://$host');
+          final cookies = await cookieJar.loadForRequest(uri);
+          for (final c in cookies) {
+            final key = '${c.name}@${c.domain ?? host}';
+            allCookies.putIfAbsent(key, () => c);
+          }
+        } catch (e) {
+          debugPrint('加载 $host 的Cookie失败: $e');
+        }
+      }
+
+      final jsCode = _buildCookieInjectionJs(allCookies.values.toList());
+      if (jsCode.isNotEmpty && _controller != null) {
+        await _controller!.runJavaScript(jsCode);
+        debugPrint('通过JavaScript注入了 ${allCookies.length} 个Cookie');
+      }
+    } catch (e) {
+      debugPrint('注入Cookie失败: $e');
+    }
+  }
+
+  String _buildCookieInjectionJs(List<Cookie> cookies) {
+    if (cookies.isEmpty) return '';
+
+    final cookieStrings = <String>[];
+    final cldiskDomains = [
+      '.cldisk.com',
+      'pan-yz.cldisk.com',
+      's2.cldisk.com',
+    ];
+    for (final cookie in cookies) {
+      final name = cookie.name.replaceAll("'", "\\'");
+      final value = cookie.value.replaceAll("'", "\\'");
+      String domain = cookie.domain ?? '.chaoxing.com';
+      final path = cookie.path ?? '/';
+
+      if (cldiskDomains.any((d) => domain.contains(d) || d.contains(domain))) {
+        domain = '.cldisk.com';
+      }
+
+      cookieStrings.add(
+        "document.cookie = '$name=$value; domain=$domain; path=$path; Secure; SameSite=None';",
+      );
+    }
+
+    return cookieStrings.join('\n');
+  }
+
+  Future<void> _injectChaoxingMobileStyles() async {
+    if (_controller == null) return;
+    try {
+      await _controller!.runJavaScript('''
+(function() {
+  var style = document.createElement("style");
+  style.textContent = "* { max-width: 100% !important; box-sizing: border-box !important; } body { margin: 0; padding: 0; overflow-x: hidden; } img { max-width: 100% !important; height: auto !important; } iframe { max-width: 100% !important; } video { max-width: 100% !important; }";
+  document.head.appendChild(style);
+})();
+      ''');
+    } catch (e) {
+      debugPrint('移动端样式注入失败: $e');
     }
   }
 
@@ -139,28 +407,7 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
     if (widget.isImage) {
       _loadImageUrl();
     } else {
-      try {
-        final previewUrl = await CXPanApi.getPreviewUrl(
-          resid: widget.resid,
-          encryptedId: widget.encryptedId,
-          isFavorite: false,
-        );
-        if (previewUrl != null) {
-          final headers = <String, String>{
-            'User-Agent': _browserUa,
-            'Referer': 'https://pan-yz.cldisk.com/pcuserpan/index',
-          };
-          await _controller.loadRequest(Uri.parse(previewUrl), headers: headers);
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _hasError = true;
-            _errorMessage = '重新加载失败: $e';
-          });
-        }
-      }
+      await _loadPage();
     }
   }
 
@@ -286,7 +533,8 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
               ],
             ),
           ),
-        if (!_hasError) WebViewWidget(controller: _controller),
+        if (!_hasError && _controller != null)
+          WebViewWidget(controller: _controller!),
         if (_isLoading && !_hasError)
           const Positioned(
             top: 0,

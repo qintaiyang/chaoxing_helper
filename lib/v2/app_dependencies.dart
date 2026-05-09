@@ -41,6 +41,7 @@ import 'domain/usecases/normal_signin_usecase.dart';
 import 'domain/usecases/code_signin_usecase.dart';
 import 'domain/usecases/location_signin_usecase.dart';
 import 'domain/usecases/qr_code_signin_usecase.dart';
+import 'domain/usecases/group_signin_usecase.dart';
 import 'domain/usecases/get_sign_detail_usecase.dart';
 import 'domain/usecases/get_course_notices_usecase.dart';
 import 'domain/usecases/get_user_notices_usecase.dart';
@@ -116,6 +117,7 @@ class AppDependencies {
   late CodeSignInUseCase codeSignInUseCase;
   late LocationSignInUseCase locationSignInUseCase;
   late QrCodeSignInUseCase qrCodeSignInUseCase;
+  late GroupSignInUseCase groupSignInUseCase;
   late GetSignDetailUseCase getSignDetailUseCase;
   late GetCourseNoticesUseCase getCourseNoticesUseCase;
   late GetUserNoticesUseCase getUserNoticesUseCase;
@@ -197,6 +199,7 @@ class AppDependencies {
     codeSignInUseCase = CodeSignInUseCase(signInRepo);
     locationSignInUseCase = LocationSignInUseCase(signInRepo);
     qrCodeSignInUseCase = QrCodeSignInUseCase(signInRepo);
+    groupSignInUseCase = GroupSignInUseCase(signInRepo);
     getSignDetailUseCase = GetSignDetailUseCase(signInRepo);
     getCourseNoticesUseCase = GetCourseNoticesUseCase(noticeRepo);
     getUserNoticesUseCase = GetUserNoticesUseCase(noticeRepo);
@@ -226,5 +229,7 @@ class AppDependencies {
     submitQuestionnaireUseCase = SubmitQuestionnaireUseCase(quizRepo);
 
     debugPrint('✅ V2 AppDependencies 初始化完成');
+
+    await cookieManager.preLoadCookiesForCurrentUser();
   }
 }

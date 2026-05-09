@@ -20,6 +20,7 @@ import '../pages/change_password_page.dart';
 import '../pages/location_select_page.dart';
 import '../pages/materials_list_page.dart';
 import '../pages/theme_settings_page.dart';
+import '../pages/custom_icon_splash_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -238,6 +239,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/theme-settings',
             builder: (context, state) => const ThemeSettingsPage(),
+          ),
+          GoRoute(
+            path: '/custom-icon-splash',
+            builder: (context, state) => const CustomIconAndSplashPage(),
           ),
         ],
       ),

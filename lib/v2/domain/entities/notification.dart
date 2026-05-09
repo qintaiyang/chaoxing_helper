@@ -87,4 +87,76 @@ class PushNotification {
   bool get hasHomeworkLink => homeworkUrl != null && homeworkUrl!.isNotEmpty;
   bool get isCourseActivity => channel == PushChannel.imCourseActivity;
   bool get isGroupSign => channel == PushChannel.imGroupSign;
+
+  factory PushNotification.fromCourseActivity(Map<String, dynamic> data) {
+    final int activeTypeValue = data['activeType'] is int
+        ? data['activeType']
+        : int.tryParse(data['activeType']?.toString() ?? '0') ?? 0;
+    final String typeTitle = data['typeTitle'] ?? data['title'] ?? '';
+    final courseInfo = data['courseInfo'] as Map<String, dynamic>?;
+    final courseName = courseInfo?['coursename'] ?? '未知课程';
+    final courseId = courseInfo?['courseid']?.toString() ?? '';
+    final classId = courseInfo?['classid']?.toString() ?? '';
+    final cpi = courseInfo?['cpi']?.toString() ?? '';
+    final category = PushCategory.fromActiveType(activeTypeValue);
+
+    String content;
+    if (PushCategory.isHomework(activeTypeValue)) {
+      content = '「$courseName」发布了新作业：$typeTitle';
+    } else {
+      content = '「$courseName」发布了「${category.label}」';
+    }
+
+    return PushNotification(
+      channel: PushChannel.imCourseActivity,
+      category: category,
+      title: typeTitle.isNotEmpty ? typeTitle : category.label,
+      content: content,
+      courseName: courseName,
+      courseId: courseId,
+      classId: classId,
+      cpi: cpi,
+      rawData: data,
+    );
+  }
+
+  factory PushNotification.fromHomework(Map<String, dynamic> data) {
+    final String title = data['title'] ?? '新作业';
+    final String courseName = data['courseName'] ?? '未知课程';
+    final String courseId = data['courseId']?.toString() ?? '';
+    final String classId = data['classId']?.toString() ?? '';
+    final String cpi = data['cpi']?.toString() ?? '';
+    final String? url = data['url']?.toString();
+    final String? workId = data['workId']?.toString();
+
+    return PushNotification(
+      channel: PushChannel.imHomework,
+      category: PushCategory.homework,
+      title: title,
+      content: '「$courseName」发布了新作业：$title',
+      courseName: courseName,
+      courseId: courseId,
+      classId: classId,
+      cpi: cpi,
+      rawData: data,
+      homeworkUrl: url,
+      homeworkId: workId,
+    );
+  }
+
+  factory PushNotification.fromGroupSign(Map<String, dynamic> data) {
+    final String title = data['title'] ?? '群聊签到';
+    final String courseId = data['courseId']?.toString() ?? '';
+    final String classId = data['classId']?.toString() ?? '';
+
+    return PushNotification(
+      channel: PushChannel.imGroupSign,
+      category: PushCategory.groupSignIn,
+      title: title,
+      content: title,
+      courseId: courseId,
+      classId: classId,
+      rawData: data,
+    );
+  }
 }

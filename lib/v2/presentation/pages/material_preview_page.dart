@@ -1,6 +1,10 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
+
 import '../../app_dependencies.dart';
 
 class MaterialPreviewPage extends StatefulWidget {
@@ -26,6 +30,24 @@ class _MaterialPreviewPageState extends State<MaterialPreviewPage> {
   static const _browserUa =
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
 
+  static const _allHosts = [
+    '.chaoxing.com',
+    'www.chaoxing.com',
+    'passport2.chaoxing.com',
+    'mooc1.chaoxing.com',
+    'mooc1-1.chaoxing.com',
+    'mooc1-api.chaoxing.com',
+    'mooc2-ans.chaoxing.com',
+    'pan-yz.chaoxing.com',
+    'i.chaoxing.com',
+    'learn.chaoxing.com',
+    'photo.chaoxing.com',
+    'im.chaoxing.com',
+    'sso.chaoxing.com',
+    'passport2-api.chaoxing.com',
+    'mobilelearn.chaoxing.com',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -33,45 +55,61 @@ class _MaterialPreviewPageState extends State<MaterialPreviewPage> {
   }
 
   Future<void> _initWebView() async {
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent(_browserUa)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageStarted: (url) {
-            if (mounted) {
-              setState(() {
-                _isLoading = true;
-                _hasError = false;
-              });
-            }
-          },
-          onPageFinished: (url) async {
-            await _injectRefererFix(url);
-            if (mounted) {
-              setState(() {
-                _isLoading = false;
-              });
-            }
-          },
-          onWebResourceError: (error) {
-            if (mounted) {
-              setState(() {
-                _isLoading = false;
-                _hasError = true;
-                _errorMessage = error.description;
-              });
-            }
-          },
-          onNavigationRequest: (request) {
-            return NavigationDecision.navigate;
-          },
-        ),
+    late final PlatformWebViewControllerCreationParams params;
+    if (WebViewPlatform.instance is WebKitWebViewPlatform) {
+      params = WebKitWebViewControllerCreationParams(
+        allowsInlineMediaPlayback: true,
+        mediaTypesRequiringUserAction: const <PlaybackMediaTypes>{},
       );
+    } else {
+      params = const PlatformWebViewControllerCreationParams();
+    }
+
+    _controller = WebViewController.fromPlatformCreationParams(params)
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setUserAgent(_browserUa);
+
+    if (_controller.platform is AndroidWebViewController) {
+      AndroidWebViewController.enableDebugging(true);
+      (_controller.platform as AndroidWebViewController)
+          .setMediaPlaybackRequiresUserGesture(false);
+    }
+
+    _controller.setNavigationDelegate(
+      NavigationDelegate(
+        onPageStarted: (url) {
+          if (mounted) {
+            setState(() {
+              _isLoading = true;
+              _hasError = false;
+            });
+          }
+        },
+        onPageFinished: (url) async {
+          await _setupCookies();
+          await _injectRefererFix(url);
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        },
+        onWebResourceError: (error) {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _hasError = true;
+              _errorMessage = error.description;
+            });
+          }
+        },
+        onNavigationRequest: (request) {
+          return NavigationDecision.navigate;
+        },
+      ),
+    );
 
     try {
-      await _setupCookies();
-
       debugPrint('资料预览URL: ${widget.url}');
       final headers = <String, String>{
         'User-Agent': _browserUa,
@@ -92,64 +130,48 @@ class _MaterialPreviewPageState extends State<MaterialPreviewPage> {
 
   Future<void> _setupCookies() async {
     try {
-      final cookieManager = AppDependencies.instance.cookieManager;
       final sessionIdResult = AppDependencies.instance.accountRepo
           .getCurrentSessionId();
-
-      sessionIdResult.fold(
-        (failure) => debugPrint('获取session失败: ${failure.message}'),
-        (userId) async {
-          if (userId == null || userId.isEmpty) {
-            debugPrint('用户ID为空，无法设置Cookie');
-            return;
-          }
-
-          final cookieJar = cookieManager.getCurrentUserCookieJar(userId);
-          if (cookieJar == null) {
-            debugPrint('CookieJar为null，用户 $userId');
-            return;
-          }
-
-          final hosts = [
-            '.chaoxing.com',
-            'www.chaoxing.com',
-            'passport2.chaoxing.com',
-            'mooc1.chaoxing.com',
-            'mooc1-1.chaoxing.com',
-            'mooc1-api.chaoxing.com',
-            'mooc2-ans.chaoxing.com',
-            'pan-yz.chaoxing.com',
-            'i.chaoxing.com',
-            'learn.chaoxing.com',
-            'photo.chaoxing.com',
-            'im.chaoxing.com',
-            'sso.chaoxing.com',
-            'passport2-api.chaoxing.com',
-            'mobilelearn.chaoxing.com',
-          ];
-
-          final allCookies = <String, Cookie>{};
-
-          for (final host in hosts) {
-            try {
-              final uri = Uri.parse('https://$host');
-              final cookies = await cookieJar.loadForRequest(uri);
-              for (final c in cookies) {
-                final key = '${c.name}@${c.domain ?? host}';
-                allCookies.putIfAbsent(key, () => c);
-              }
-            } catch (e) {
-              debugPrint('加载 $host 的Cookie失败: $e');
-            }
-          }
-
-          final jsCode = _buildCookieInjectionJs(allCookies.values.toList());
-          if (jsCode.isNotEmpty) {
-            await _controller.runJavaScript(jsCode);
-            debugPrint('资料预览通过JavaScript注入了 ${allCookies.length} 个Cookie');
-          }
+      final userId = sessionIdResult.fold(
+        (failure) {
+          debugPrint('获取session失败: ${failure.message}');
+          return null;
         },
+        (id) => id,
       );
+
+      if (userId == null || userId.isEmpty) {
+        debugPrint('用户ID为空，无法设置Cookie');
+        return;
+      }
+
+      final cookieJar = AppDependencies.instance.cookieManager
+          .getCurrentUserCookieJar(userId);
+      if (cookieJar == null) {
+        debugPrint('CookieJar为null，用户 $userId');
+        return;
+      }
+
+      final allCookies = <String, Cookie>{};
+
+      for (final host in _allHosts) {
+        try {
+          final uri = Uri.parse('https://$host');
+          final cookies = await cookieJar.loadForRequest(uri);
+          for (final c in cookies) {
+            final key = '${c.name}@${c.domain ?? host}';
+            allCookies.putIfAbsent(key, () => c);
+          }
+        } catch (e) {
+          debugPrint('加载 $host 的Cookie失败: $e');
+        }
+      }
+
+      final jsCode = _buildCookieInjectionJs(allCookies.values.toList());
+      if (jsCode.isNotEmpty) {
+        await _controller.runJavaScript(jsCode);
+        debugPrint('资料预览通过JavaScript注入了 ${allCookies.length} 个Cookie');
+      }
     } catch (e) {
       debugPrint('读取cookies失败: $e');
     }
@@ -175,17 +197,17 @@ class _MaterialPreviewPageState extends State<MaterialPreviewPage> {
   Future<void> _injectRefererFix(String url) async {
     try {
       await _controller.runJavaScript('''
-        (function() {
-          var viewport = document.querySelector('meta[name=viewport]');
-          if (viewport) {
-            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-          } else {
-            viewport = document.createElement('meta');
-            viewport.name = 'viewport';
-            viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-            document.head.appendChild(viewport);
-          }
-        })();
+(function() {
+  var viewport = document.querySelector('meta[name=viewport]');
+  if (viewport) {
+    viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+  } else {
+    viewport = document.createElement('meta');
+    viewport.name = 'viewport';
+    viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    document.head.appendChild(viewport);
+  }
+})();
       ''');
     } catch (e) {
       debugPrint('Viewport注入失败: $e');
@@ -199,7 +221,6 @@ class _MaterialPreviewPageState extends State<MaterialPreviewPage> {
       _errorMessage = '';
     });
     try {
-      await _setupCookies();
       final headers = <String, String>{
         'User-Agent': _browserUa,
         'Referer': 'https://mooc1.chaoxing.com/',

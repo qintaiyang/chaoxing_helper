@@ -16,7 +16,7 @@ import 'package:record/record.dart';
 
 import '../../app_dependencies.dart';
 import '../../domain/entities/course.dart';
-import '../../domain/entities/push_notification.dart';
+import '../../domain/entities/notification.dart';
 import '../../domain/entities/user.dart';
 import '../../infra/services/dnd_service.dart';
 import '../../infra/services/member_name_cache.dart';
@@ -121,12 +121,30 @@ class _GroupChatPageState extends State<GroupChatPage> {
           final senderAvatar = _getAvatarUrl(message);
           final parsed = _parseMessage(message, senderName, senderAvatar);
           if (parsed != null) {
-            setState(() => _messages.add(parsed));
+            setState(() {
+              _insertMessageSorted(parsed);
+            });
             _scrollToBottom();
             _debouncedSaveToCache();
             unawaited(_markConversationAsRead());
           }
         });
+  }
+
+  void _insertMessageSorted(_ChatMessage msg) {
+    int left = 0;
+    int right = _messages.length;
+    final ts = msg.timestamp.millisecondsSinceEpoch;
+
+    while (left < right) {
+      final mid = (left + right) >> 1;
+      if (_messages[mid].timestamp.millisecondsSinceEpoch < ts) {
+        left = mid + 1;
+      } else {
+        right = mid;
+      }
+    }
+    _messages.insert(left, msg);
   }
 
   void _setupAudioPlayer() {
@@ -273,8 +291,28 @@ class _GroupChatPageState extends State<GroupChatPage> {
       final cached = AppDependencies.instance.storage.getStringSync(_cacheKey);
       if (cached != null && cached.isNotEmpty) {
         final List<dynamic> list = jsonDecode(cached);
+        debugPrint('[ChatCache] Phase1 原始缓存数据: ${list.length} 条');
+        if (list.isNotEmpty) {
+          final first = list.first;
+          final last = list.last;
+          debugPrint(
+            '[ChatCache] Phase1 第一条: msgId=${first['msgId']}, timestamp=${first['timestamp']}',
+          );
+          debugPrint(
+            '[ChatCache] Phase1 最后一条: msgId=${last['msgId']}, timestamp=${last['timestamp']}',
+          );
+        }
         for (var item in list) {
           _messages.add(_ChatMessage.fromJson(item));
+        }
+        _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        if (_messages.isNotEmpty) {
+          debugPrint(
+            '[ChatCache] Phase1 排序后: 第一条时间=${_messages.first.timestamp}',
+          );
+          debugPrint(
+            '[ChatCache] Phase1 排序后: 最后一条时间=${_messages.last.timestamp}',
+          );
         }
         debugPrint('[ChatCache] Phase1 缓存加载: ${_messages.length} 条消息');
         if (mounted) setState(() {});
@@ -316,8 +354,8 @@ class _GroupChatPageState extends State<GroupChatPage> {
         }
       }
 
+      _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
       if (newCount > 0) {
-        _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
         debugPrint(
           '[ChatCache] Phase2 本地DB加载: +$newCount 条, 总计 ${_messages.length} 条',
         );
@@ -341,33 +379,32 @@ class _GroupChatPageState extends State<GroupChatPage> {
     try {
       final result = await EMClient.getInstance.chatManager
           .fetchHistoryMessagesByOption(widget.chatId, _convType, pageSize: 50);
-      if (result.data.isEmpty) {
-        debugPrint('[ChatCache] Phase3 服务器: 无历史消息');
-        return;
-      }
+      if (result.data.isNotEmpty) {
+        final existingIds = _messages.map((m) => m.msgId).toSet();
+        int newCount = 0;
 
-      final existingIds = _messages.map((m) => m.msgId).toSet();
-      int newCount = 0;
-
-      for (var msg in result.data) {
-        if (existingIds.contains(msg.msgId)) continue;
-        final senderName = _getDisplayName(msg);
-        final senderAvatar = _getAvatarUrl(msg);
-        final parsed = _parseMessage(msg, senderName, senderAvatar);
-        if (parsed != null) {
-          _messages.add(parsed);
-          existingIds.add(parsed.msgId);
-          newCount++;
+        for (var msg in result.data) {
+          if (existingIds.contains(msg.msgId)) continue;
+          final senderName = _getDisplayName(msg);
+          final senderAvatar = _getAvatarUrl(msg);
+          final parsed = _parseMessage(msg, senderName, senderAvatar);
+          if (parsed != null) {
+            _messages.add(parsed);
+            existingIds.add(parsed.msgId);
+            newCount++;
+          }
         }
-      }
 
-      if (newCount > 0) {
         _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-        debugPrint(
-          '[ChatCache] Phase3 服务器加载: +$newCount 条, 总计 ${_messages.length} 条',
-        );
-        if (mounted) setState(() {});
-        Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+        if (newCount > 0) {
+          debugPrint(
+            '[ChatCache] Phase3 服务器加载: +$newCount 条, 总计 ${_messages.length} 条',
+          );
+          if (mounted) setState(() {});
+          Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+        }
+      } else {
+        debugPrint('[ChatCache] Phase3 服务器: 无历史消息');
       }
     } catch (e) {
       debugPrint('[ChatCache] Phase3 服务器加载失败: $e');
@@ -415,15 +452,38 @@ class _GroupChatPageState extends State<GroupChatPage> {
 
   Future<void> _saveToCache() async {
     try {
-      final messages = _messages
+      debugPrint('[ChatCache] 保存前: 总消息数=${_messages.length}');
+      if (_messages.isNotEmpty) {
+        debugPrint(
+          '[ChatCache] 保存前: 第一条时间=${_messages.first.timestamp}, msgId=${_messages.first.msgId}',
+        );
+        debugPrint(
+          '[ChatCache] 保存前: 最后一条时间=${_messages.last.timestamp}, msgId=${_messages.last.msgId}',
+        );
+      }
+      final sorted = List<_ChatMessage>.from(_messages)
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      final messages = sorted
           .where((m) => m.type != _MsgType.system)
           .take(_maxCacheMessages)
-          .map((m) => jsonEncode(m.toJson()))
+          .map((m) => m.toJson())
           .toList();
+      if (messages.isNotEmpty) {
+        debugPrint(
+          '[ChatCache] 降序取最新: 第一条(最新)时间=${messages.first['timestamp']}',
+        );
+        debugPrint(
+          '[ChatCache] 降序取最新: 最后一条(最旧)时间=${messages.last['timestamp']}',
+        );
+      }
+      messages.sort(
+        (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int),
+      );
       await AppDependencies.instance.storage.setString(
         _cacheKey,
         jsonEncode(messages),
       );
+      debugPrint('[ChatCache] 缓存保存: ${messages.length} 条消息');
     } catch (e) {
       debugPrint('[ChatCache] 保存缓存失败: $e');
     }
@@ -1596,11 +1656,6 @@ class _GroupChatPageState extends State<GroupChatPage> {
       _snack('文件信息丢失');
       return;
     }
-    final remotePath = msg.rawData!['remotePath'] as String?;
-    if (remotePath == null || remotePath.isEmpty) {
-      _snack('文件路径为空');
-      return;
-    }
     final displayName = msg.rawData?['displayName']?.toString() ?? '未知文件';
 
     _snack('正在下载: $displayName');
@@ -1610,9 +1665,39 @@ class _GroupChatPageState extends State<GroupChatPage> {
         _snack('无法获取存储目录');
         return;
       }
+
+      String? downloadUrl;
+
+      final fileId =
+          msg.rawData?['fileId']?.toString() ??
+          msg.rawData?['objectId']?.toString() ??
+          '';
+      final resid = msg.rawData?['resid']?.toString() ?? '';
+      final remotePath = msg.rawData?['remotePath']?.toString() ?? '';
+
+      if (fileId.isNotEmpty || resid.isNotEmpty) {
+        debugPrint('[GroupChat] 使用云盘API下载文件');
+        final result = await AppDependencies.instance.cxPanApi
+            .getCloudDownloadUrl(
+              fleid: resid.isNotEmpty ? resid : fileId,
+              encryptedId: fileId,
+            );
+        if (result != null && result['result'] == true) {
+          downloadUrl = result['downloadUrl'];
+          debugPrint('[GroupChat] 云盘下载URL: $downloadUrl');
+        }
+      }
+
+      downloadUrl ??= remotePath;
+
+      if (downloadUrl == null || downloadUrl.isEmpty) {
+        _snack('文件路径为空');
+        return;
+      }
+
       final savePath = '${dir.path}/$displayName';
       final response = await AppDependencies.instance.dioClient.sendRequest(
-        remotePath,
+        downloadUrl,
         responseType: ResponseType.bytes,
       );
       if (response.data != null) {
@@ -2037,7 +2122,9 @@ class _GroupChatPageState extends State<GroupChatPage> {
       );
 
       if (mounted) {
-        setState(() => _messages.add(localMsg));
+        setState(() {
+          _insertMessageSorted(localMsg);
+        });
         _scrollToBottom();
         _debouncedSaveToCache();
       }
@@ -2097,7 +2184,9 @@ class _GroupChatPageState extends State<GroupChatPage> {
         },
       );
       if (mounted) {
-        setState(() => _messages.add(localMsg));
+        setState(() {
+          _insertMessageSorted(localMsg);
+        });
         _scrollToBottom();
         _debouncedSaveToCache();
       }
@@ -2315,7 +2404,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
       );
       if (mounted) {
         setState(() {
-          _messages.add(parsed);
+          _insertMessageSorted(parsed);
           _showAttachmentPanel = false;
         });
         _scrollToBottom();
@@ -2462,7 +2551,9 @@ class _GroupChatPageState extends State<GroupChatPage> {
         },
       );
       if (mounted) {
-        setState(() => _messages.add(localMsg));
+        setState(() {
+          _insertMessageSorted(localMsg);
+        });
         _scrollToBottom();
         _debouncedSaveToCache();
       }
@@ -2579,7 +2670,9 @@ class _GroupChatPageState extends State<GroupChatPage> {
           },
         );
         if (mounted) {
-          setState(() => _messages.add(parsed));
+          setState(() {
+            _insertMessageSorted(parsed);
+          });
           _scrollToBottom();
           _debouncedSaveToCache();
         }

@@ -87,19 +87,31 @@ class _QrCodeSignAreaState extends State<QrCodeSignArea> {
 
     await _controller.stop();
 
-    final parts = code.split(',');
     String? enc;
     String? enc2;
+    String? qrActiveId;
 
-    for (var part in parts) {
-      if (part.startsWith('enc=')) {
-        enc = part.substring(4);
-      } else if (part.startsWith('enc2=')) {
-        enc2 = part.substring(5);
+    try {
+      final uri = Uri.parse(code);
+      enc = uri.queryParameters['enc'];
+      enc2 = uri.queryParameters['enc2'];
+      qrActiveId = uri.queryParameters['id'];
+    } catch (e) {
+      final parts = code.split(',');
+      for (var part in parts) {
+        if (part.startsWith('enc=')) {
+          enc = part.substring(4);
+        } else if (part.startsWith('enc2=')) {
+          enc2 = part.substring(5);
+        } else if (part.startsWith('id=')) {
+          qrActiveId = part.substring(3);
+        }
       }
     }
 
-    if (enc == null) {
+    final activeId = qrActiveId ?? widget.activeId;
+
+    if (enc == null || enc.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -115,7 +127,7 @@ class _QrCodeSignAreaState extends State<QrCodeSignArea> {
 
     final deps = AppDependencies.instance;
     final isValid = await deps.cxSignInApi.checkQrCode(
-      activeId: widget.activeId,
+      activeId: activeId,
       enc: enc,
       enc2: enc2,
     );
@@ -136,7 +148,7 @@ class _QrCodeSignAreaState extends State<QrCodeSignArea> {
 
       widget.controller.performMultiSign(
         courseId: widget.courseId,
-        activeId: widget.activeId,
+        activeId: activeId,
         classId: widget.classId,
         cpi: widget.cpi,
         enc: enc,

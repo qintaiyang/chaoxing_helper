@@ -32,6 +32,7 @@ class _ActivityWebViewPageState extends ConsumerState<ActivityWebViewPage> {
   bool _hasError = false;
   String _errorMessage = '';
   int _progress = 0;
+  bool _isLoginPage = false;
 
   static const _browserUa =
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
@@ -79,6 +80,7 @@ class _ActivityWebViewPageState extends ConsumerState<ActivityWebViewPage> {
             if (controller != null) {
               await _injectViewport(controller);
               await _injectCookies(controller);
+              await _checkLoginPage();
             }
 
             if (mounted) {
@@ -242,6 +244,38 @@ class _ActivityWebViewPageState extends ConsumerState<ActivityWebViewPage> {
     }
   }
 
+  bool _isLoginPageUrl(String url) {
+    return url.contains('passport2.chaoxing.com') ||
+        url.contains('passport.chaoxing.com') ||
+        (url.contains('login') && url.contains('chaoxing.com'));
+  }
+
+  Future<void> _checkLoginPage() async {
+    try {
+      final controller = _controller;
+      if (controller == null) return;
+
+      final currentUrl = await controller.currentUrl();
+      if (currentUrl != null && _isLoginPageUrl(currentUrl)) {
+        debugPrint('检测到登录页面: $currentUrl');
+        if (mounted) {
+          setState(() {
+            _isLoginPage = true;
+            _loading = false;
+          });
+        }
+      } else {
+        if (mounted && _isLoginPage) {
+          setState(() {
+            _isLoginPage = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('检查登录页面失败: $e');
+    }
+  }
+
   Future<void> _reload() async {
     final controller = _controller;
     if (controller == null) return;
@@ -342,6 +376,33 @@ class _ActivityWebViewPageState extends ConsumerState<ActivityWebViewPage> {
                             FilledButton.tonal(
                               onPressed: _reload,
                               child: const Text('重新加载'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                if (_isLoginPage)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.white,
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.warning_amber_rounded,
+                              size: 64,
+                              color: Colors.orange,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              '请重新打开该页面',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
                             ),
                           ],
                         ),

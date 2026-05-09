@@ -9,6 +9,8 @@ import '../providers/providers.dart';
 import '../../domain/entities/pan_file.dart';
 import 'file_preview_page.dart';
 
+const _kPanPageKey = 'pan_page';
+
 class PanPage extends ConsumerStatefulWidget {
   const PanPage({super.key});
   @override
@@ -249,11 +251,16 @@ class _PanPageState extends ConsumerState<PanPage>
 
     ref.listen<int>(sessionVersionProvider, (previous, next) {
       if (previous != next) {
-        _currentFolderId = '0';
-        _folderStack.clear();
-        _folderStack.add('0');
-        _folderNames.clear();
-        _folderNames.add('根目录');
+        debugPrint('云盘页面检测到账号变更，重置状态并刷新数据');
+        setState(() {
+          _currentFolderId = '0';
+          _folderStack.clear();
+          _folderStack.add('0');
+          _folderNames.clear();
+          _folderNames.add('根目录');
+          _searchValue = '';
+          _searchCtrl.clear();
+        });
         ref.invalidate(panListControllerProvider(folderId: '0'));
         ref.invalidate(recycleBinProvider);
       }
@@ -347,14 +354,16 @@ class _PanPageState extends ConsumerState<PanPage>
   Decoration? _buildBackgroundDecoration(BuildContext context) {
     final theme = Theme.of(context);
     final bgExt = theme.extension<ThemeBackgrounds>();
-    const pageKey = 'pan_page';
-    final decoration = bgExt?.getBackgroundDecoration(pageKey);
+    final decoration = bgExt?.getBackgroundDecoration(_kPanPageKey);
     if (decoration != null) return decoration;
     return BoxDecoration(
       gradient: LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [theme.colorScheme.surfaceContainer, theme.colorScheme.surface],
+        colors: [
+          theme.colorScheme.primary.withValues(alpha: 0.3),
+          theme.colorScheme.surface,
+        ],
       ),
     );
   }
@@ -629,17 +638,17 @@ class _PanPageState extends ConsumerState<PanPage>
     );
     if (ok != true) return;
 
-    final controller = ref.read(
-      panListControllerProvider(folderId: _currentFolderId).notifier,
-    );
-    final success = await controller.deleteFile(file.fileId, file.encryptedId);
+    final panRepo = ref.read(panRepositoryProvider);
+    final result = await panRepo.deleteRecycleFiles(file.fileId);
     if (mounted) {
-      if (success) {
-        _showSnack('已彻底删除');
-        ref.invalidate(recycleBinProvider);
-      } else {
-        _showSnack('删除失败');
-      }
+      result.fold((failure) => _showSnack('删除失败'), (success) {
+        if (success) {
+          _showSnack('已彻底删除');
+          ref.invalidate(recycleBinProvider);
+        } else {
+          _showSnack('删除失败');
+        }
+      });
     }
   }
 

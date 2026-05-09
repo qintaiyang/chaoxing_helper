@@ -60,7 +60,7 @@ class _V2MainPageState extends ConsumerState<V2MainPage>
       colorScheme.primary,
       colorScheme.secondary,
       colorScheme.tertiary,
-      colorScheme.tertiaryContainer,
+      colorScheme.inversePrimary,
     ];
     final currentSeedColor = pageColors[_selectedIndex];
 

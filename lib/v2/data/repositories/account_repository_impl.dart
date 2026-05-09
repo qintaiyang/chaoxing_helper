@@ -39,15 +39,15 @@ class AccountRepositoryImpl implements AccountRepository {
     try {
       _currentSessionId = userId;
       if (userId != null) {
-        final result = await _storage.setString(_sessionKey, userId);
+        await _storage.setString(_sessionKey, userId);
         final user = getAccountById(userId).fold((_) => null, (u) => u);
         if (user != null && user.imAccount != null) {
-          await _switchImAccount(
+          _switchImAccountAsync(
             userName: user.imAccount!.userName,
             password: user.imAccount!.password,
           );
         }
-        return result.fold((f) => Left(f), (_) => const Right(null));
+        return const Right(null);
       } else {
         await _storage.remove(_sessionKey);
         try {
@@ -176,16 +176,18 @@ class AccountRepositoryImpl implements AccountRepository {
     }
   }
 
-  Future<void> _switchImAccount({
+  void _switchImAccountAsync({
     required String userName,
     required String password,
-  }) async {
-    try {
-      await AppDependencies.instance.imService.logout();
-      await AppDependencies.instance.imService.login(userName, password);
-    } catch (e) {
-      debugPrint('IM账号切换失败: $e');
-    }
+  }) {
+    AppDependencies.instance.imService
+        .logout()
+        .then((_) {
+          AppDependencies.instance.imService.login(userName, password);
+        })
+        .catchError((e) {
+          debugPrint('IM账号切换失败: $e');
+        });
   }
 
   Future<void> _loadAccountsIfNeeded() async {

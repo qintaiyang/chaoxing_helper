@@ -54,6 +54,13 @@ class DndService {
     return _dndGroups.contains(groupId);
   }
 
+  List<String> getDndGroups() {
+    if (!_loaded) {
+      _loadFromStorageSync();
+    }
+    return _dndGroups.toList();
+  }
+
   void _loadFromStorageSync() {
     try {
       final data = StorageService.getValueSync(_storageKey);

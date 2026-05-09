@@ -362,7 +362,7 @@ class PanRepositoryImpl implements PanRepository {
     required String resid,
   }) async {
     try {
-      final result = await CXPanApi.getImagePreviewUrl(resid: resid);
+      final result = await _cxApi.getImagePreviewUrl(resid: resid);
       return Right(result);
     } catch (e) {
       return Left(Failure.unknown(message: e.toString(), error: e));

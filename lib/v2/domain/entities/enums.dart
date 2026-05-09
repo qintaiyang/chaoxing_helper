@@ -43,7 +43,7 @@ enum ActiveType {
   }
 }
 
-enum SignType { normal, qrCode, pattern, location, code }
+enum SignType { normal, qrCode, pattern, location, code, groupSignIn }
 
 const Map<int, SignType> signTypeIndexMap = {
   0: SignType.normal,
@@ -51,4 +51,5 @@ const Map<int, SignType> signTypeIndexMap = {
   3: SignType.pattern,
   4: SignType.location,
   5: SignType.code,
+  75: SignType.groupSignIn,
 };

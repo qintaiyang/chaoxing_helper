@@ -7,6 +7,7 @@ import '../widgets/error_view.dart';
 import '../widgets/network_image.dart';
 import '../../domain/entities/course.dart';
 import '../widgets/staggered_animation.dart';
+import 'homework_page.dart';
 
 class CourseListPage extends ConsumerStatefulWidget {
   const CourseListPage({super.key});
@@ -128,6 +129,16 @@ class _CourseListPageState extends ConsumerState<CourseListPage> {
               },
               tooltip: '搜索',
             ),
+          IconButton(
+            icon: const Icon(Icons.assignment, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HomeworkPage()),
+              );
+            },
+            tooltip: '作业',
+          ),
         ],
       ),
       body: Container(

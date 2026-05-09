@@ -685,7 +685,12 @@ class CXPanApi {
         body: formData,
         headers: headers,
       );
-      return response.data?['result'] == true;
+      debugPrint('restoreCloudFiles 响应: ${response.data}');
+      final data = response.data;
+      if (data is Map) {
+        return data['result'] == true || data['success'] == true;
+      }
+      return false;
     } catch (e) {
       debugPrint('restoreCloudFiles error: $e');
       return null;
@@ -696,7 +701,7 @@ class CXPanApi {
     try {
       final token = await _getPanToken();
       if (token == null) return null;
-      const url = 'https://pan-yz.cldisk.com/recycle/del';
+      const url = 'https://pan-yz.cldisk.com/recycle/delres';
       final formData = {'resids': resids};
       final headers = {
         'p-auth-token': token,
@@ -709,7 +714,12 @@ class CXPanApi {
         body: formData,
         headers: headers,
       );
-      return response.data?['result'] == true;
+      debugPrint('deleteRecycleFiles 响应: ${response.data}');
+      final data = response.data;
+      if (data is Map) {
+        return data['result'] == true || data['success'] == true;
+      }
+      return false;
     } catch (e) {
       debugPrint('deleteRecycleFiles error: $e');
       return null;
@@ -845,9 +855,9 @@ class CXPanApi {
     }
   }
 
-  static Future<String?> getImagePreviewUrl({required String resid}) async {
+  Future<String?> getImagePreviewUrl({required String resid}) async {
     try {
-      final token = await CXPanApi._getPanTokenStatic();
+      final token = await _getPanToken();
       if (token == null) return null;
 
       final ts = DateTime.now().millisecondsSinceEpoch;
@@ -858,13 +868,13 @@ class CXPanApi {
     }
   }
 
-  static Future<String?> getPreviewUrl({
+  Future<String?> getPreviewUrl({
     required String resid,
     String encryptedId = '',
     bool isFavorite = false,
   }) async {
     try {
-      final token = await CXPanApi._getPanTokenStatic();
+      final token = await _getPanToken();
       if (token == null) return null;
 
       final ts = DateTime.now().millisecondsSinceEpoch;
@@ -881,21 +891,6 @@ class CXPanApi {
       return url;
     } catch (e) {
       debugPrint('getPreviewUrl error: $e');
-    }
-    return null;
-  }
-
-  static Future<String?> _getPanTokenStatic() async {
-    try {
-      const url = 'https://i.chaoxing.com/pan/getToken';
-      final dio = AppDependencies.instance.dioClient.dio;
-      final response = await dio.post(url);
-      if (response.data != null && response.data['status'] == true) {
-        return response.data['token'];
-      }
-      return null;
-    } catch (e) {
-      debugPrint('_getPanTokenStatic error: $e');
       return null;
     }
   }

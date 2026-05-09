@@ -48,6 +48,10 @@ android {
 
         val baiduMapKey = localProperties.getProperty("BAIDU_MAP_API_KEY", "")
         manifestPlaceholders["BAIDU_MAP_API_KEY"] = baiduMapKey
+
+        ndk {
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
+        }
     }
 
     signingConfigs {

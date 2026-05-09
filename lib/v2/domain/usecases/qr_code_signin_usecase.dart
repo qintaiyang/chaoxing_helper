@@ -9,7 +9,7 @@ class QrCodeSignInUseCase {
   QrCodeSignInUseCase(this._signInRepo);
 
   Future<Either<Failure, SignIn>> execute({
-    required String courseId,
+    String? courseId,
     required String activeId,
     required String enc,
     required String uid,

@@ -181,6 +181,10 @@ class SignInController extends StateNotifier<SignInState> {
     );
   }
 
+  void setSelectedAccounts(List<User> accounts) {
+    state = state.copyWith(selectedAccounts: accounts);
+  }
+
   Future<void> performMultiSign({
     required String courseId,
     required String activeId,
@@ -191,6 +195,7 @@ class SignInController extends StateNotifier<SignInState> {
     String? address,
     double? latitude,
     double? longitude,
+    bool isGroupSignIn = false,
   }) async {
     if (state.selectedAccounts.isEmpty) return;
     if (state.isMultiSigning) return;
@@ -202,10 +207,19 @@ class SignInController extends StateNotifier<SignInState> {
     );
 
     final failedAccounts = <String>[];
+    final selectedAccounts = List<User>.from(state.selectedAccounts);
+    final cookieManager = AppDependencies.instance.cookieManager;
 
-    if (state.needCaptcha && state.signType != SignType.qrCode) {
-      for (var user in state.selectedAccounts) {
+    final accountIds = selectedAccounts.map((u) => u.uid).toList();
+    await cookieManager.preloadCookiesForAllUsers(accountIds);
+
+    if (!isGroupSignIn &&
+        state.needCaptcha &&
+        state.signType != SignType.qrCode) {
+      for (var user in selectedAccounts) {
+        cookieManager.setOverrideUserId(user.uid);
         final captchaSuccess = await handleCaptcha(user.uid);
+        cookieManager.setOverrideUserId(null);
         if (!captchaSuccess) {
           state = state.copyWith(isLoading: false, isMultiSigning: false);
           _showErrorMessage('验证码取消或失败');
@@ -214,21 +228,47 @@ class SignInController extends StateNotifier<SignInState> {
       }
     }
 
-    for (var user in state.selectedAccounts) {
-      final result = await signForAccount(
-        user: user,
-        courseId: courseId,
-        activeId: activeId,
-        classId: classId,
-        cpi: cpi,
-        signCode: signCode,
-        enc: enc,
-        address: address,
-        latitude: latitude,
-        longitude: longitude,
-      );
-
-      await handleSignResult(result, user, failedAccounts);
+    for (var user in selectedAccounts) {
+      cookieManager.setOverrideUserId(user.uid);
+      try {
+        final result = isGroupSignIn
+            ? await signForGroup(
+                user: user,
+                activeId: activeId,
+                address: address,
+                latitude: latitude,
+                longitude: longitude,
+              )
+            : await signForAccount(
+                user: user,
+                courseId: courseId,
+                activeId: activeId,
+                classId: classId,
+                cpi: cpi,
+                signCode: signCode,
+                enc: enc,
+                address: address,
+                latitude: latitude,
+                longitude: longitude,
+              );
+        await handleSignResult(
+          result,
+          user,
+          failedAccounts,
+          courseId: courseId,
+          activeId: activeId,
+          classId: classId,
+          cpi: cpi,
+          signCode: signCode,
+          enc: enc,
+          address: address,
+          latitude: latitude,
+          longitude: longitude,
+          isGroupSignIn: isGroupSignIn,
+        );
+      } finally {
+        cookieManager.setOverrideUserId(null);
+      }
     }
 
     state = state.copyWith(
@@ -237,7 +277,31 @@ class SignInController extends StateNotifier<SignInState> {
       failedAccounts: failedAccounts,
     );
 
-    _showMultiSignResult(state.selectedAccounts.length, failedAccounts);
+    _showMultiSignResult(selectedAccounts.length, failedAccounts);
+  }
+
+  Future<void> preGroupSign(String activeId) async {
+    final deps = AppDependencies.instance;
+    await deps.cxSignInApi.groupPreSignIn(activeId);
+  }
+
+  Future<String?> signForGroup({
+    required User user,
+    required String activeId,
+    String? address,
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      final deps = AppDependencies.instance;
+      final result = await deps.groupSignInUseCase.execute(
+        activeId: activeId,
+        uid: user.uid,
+      );
+      return result.fold((failure) => failure.message, (_) => 'success');
+    } catch (e) {
+      return '群聊签到异常: $e';
+    }
   }
 
   Future<String?> signForAccount({
@@ -361,8 +425,18 @@ class SignInController extends StateNotifier<SignInState> {
   Future<void> handleSignResult(
     String? result,
     User user,
-    List<String> failedAccounts,
-  ) async {
+    List<String> failedAccounts, {
+    String? courseId,
+    String? activeId,
+    String? classId,
+    String? cpi,
+    String? signCode,
+    String? enc,
+    String? address,
+    double? latitude,
+    double? longitude,
+    bool isGroupSignIn = false,
+  }) async {
     if (result == null) {
       failedAccounts.add('${user.name} (无响应)');
       return;
@@ -385,21 +459,44 @@ class SignInController extends StateNotifier<SignInState> {
           return;
         }
 
-        final deps = AppDependencies.instance;
-        final newResult = await deps.normalSignInUseCase.execute(
-          courseId: '',
-          activeId: '',
-          uid: user.uid,
-          name: user.name,
-          validate: state.userCaptchaValidates[user.uid]?['validate'],
-        );
+        final newResult = isGroupSignIn
+            ? await signForGroup(
+                user: user,
+                activeId: activeId ?? '',
+                address: address,
+                latitude: latitude,
+                longitude: longitude,
+              )
+            : await signForAccount(
+                user: user,
+                courseId: courseId ?? '',
+                activeId: activeId ?? '',
+                classId: classId ?? '',
+                cpi: cpi ?? '',
+                signCode: signCode,
+                enc: enc,
+                address: address,
+                latitude: latitude,
+                longitude: longitude,
+              );
 
-        final newResultStr = newResult.fold(
-          (failure) => failure.message,
-          (_) => 'success',
-        );
+        final newResultStr = newResult ?? '签到异常';
 
-        await handleSignResult(newResultStr, user, failedAccounts);
+        await handleSignResult(
+          newResultStr,
+          user,
+          failedAccounts,
+          courseId: courseId,
+          activeId: activeId,
+          classId: classId,
+          cpi: cpi,
+          signCode: signCode,
+          enc: enc,
+          address: address,
+          latitude: latitude,
+          longitude: longitude,
+          isGroupSignIn: isGroupSignIn,
+        );
       }
     } else if (result == 'success') {
       debugPrint('${user.name} 签到成功');

@@ -7,7 +7,9 @@ import '../../domain/repositories/storage_repository.dart';
 class CookieManager {
   final StorageRepository _storage;
   final Map<String, CookieJar> _userCookieJars = {};
+  final Map<String, bool> _loadingInProgress = {};
   CookieJar? _tempCookieJar;
+  String? _overrideCurrentUserId;
 
   static const cxDomain = '.chaoxing.com';
   static const rcDomain = '.yuketang.cn';
@@ -36,10 +38,22 @@ class CookieManager {
     if (_userCookieJars.containsKey(userId)) {
       return _userCookieJars[userId]!;
     }
-    final cookieJar = CookieJar();
-    _userCookieJars[userId] = cookieJar;
-    await _loadCookiesForUser(userId, cookieJar);
-    return cookieJar;
+
+    if (_loadingInProgress[userId] == true) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      return getCookieJarForUser(userId, platform: platform);
+    }
+
+    _loadingInProgress[userId] = true;
+
+    try {
+      final cookieJar = CookieJar();
+      _userCookieJars[userId] = cookieJar;
+      await _loadCookiesForUser(userId, cookieJar);
+      return cookieJar;
+    } finally {
+      _loadingInProgress.remove(userId);
+    }
   }
 
   CookieJar getTempCookieJar() {
@@ -144,9 +158,48 @@ class CookieManager {
     await _storage.remove('cookies_$userId');
   }
 
+  Future<void> preLoadCookiesForCurrentUser() async {
+    final currentUserId = await _storage.getString('chaoxing_current_session');
+    currentUserId.fold((_) => debugPrint('⚠️ 预加载Cookie失败: 获取当前用户ID失败'), (
+      userId,
+    ) async {
+      if (userId == null || userId.isEmpty) return;
+      debugPrint('🔄 预加载用户 $userId 的Cookie...');
+      try {
+        await getCookieJarForUser(userId);
+        debugPrint('✅ Cookie预加载完成');
+      } catch (e) {
+        debugPrint('❌ Cookie预加载失败: $e');
+      }
+    });
+  }
+
+  Future<void> preloadCookiesForAllUsers(List<String> userIds) async {
+    final futures = userIds.map((userId) async {
+      if (_userCookieJars.containsKey(userId)) return;
+      debugPrint('🔄 预加载用户 $userId 的Cookie...');
+      try {
+        await getCookieJarForUser(userId);
+        debugPrint('✅ Cookie预加载完成: $userId');
+      } catch (e) {
+        debugPrint('❌ Cookie预加载失败: $userId, $e');
+      }
+    }).toList();
+    await Future.wait(futures);
+    debugPrint('✅ 所有用户Cookie预加载完成');
+  }
+
   CookieJar? getCurrentUserCookieJar(String? userId) {
     if (userId == null || userId.isEmpty) return null;
     return _userCookieJars[userId];
+  }
+
+  void setOverrideUserId(String? userId) {
+    _overrideCurrentUserId = userId;
+  }
+
+  String? getOverrideUserId() {
+    return _overrideCurrentUserId;
   }
 
   Uri _getDomainUri(PlatformType platform) {
